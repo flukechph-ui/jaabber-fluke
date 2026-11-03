@@ -1,0 +1,2661 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jaab Ber — จองโต๊ะและจัดผังร้าน</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans Thai', sans-serif; background-color: #f7f5f1; color: #26332f; }
+    .table-label {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #0f172a;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border: 1.5px solid #cbd5e1;
+      white-space: nowrap;
+      pointer-events: none;
+      transition: all 0.2s ease;
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  
+    /* ATELIER Korean editorial design system */
+    :root {
+      --ink: #26332f;
+      --muted: #7c8780;
+      --sage: #789586;
+      --sage-dark: #587363;
+      --cream: #f7f5f1;
+      --paper: #fffdfa;
+      --line: #e8e5de;
+      --rose: #c98f8b;
+      --lavender: #a89bb8;
+      --shadow-soft: 0 12px 35px rgba(53, 67, 60, .08);
+      --shadow-card: 0 6px 20px rgba(53, 67, 60, .06);
+    }
+    * { box-sizing: border-box; }
+    body { letter-spacing: -.01em; }
+    header {
+      background: rgba(255,253,250,.92) !important;
+      border-color: var(--line) !important;
+      box-shadow: 0 1px 0 rgba(38,51,47,.03), 0 8px 24px rgba(53,67,60,.04) !important;
+      padding: 14px 28px !important;
+    }
+    header h1 { color: var(--ink) !important; font-size: 17px !important; letter-spacing: -.03em; }
+    header p { color: var(--muted) !important; font-size: 10px !important; letter-spacing: .04em; }
+    header .w-9.h-9 {
+      width: 40px !important; height: 40px !important; border-radius: 14px !important;
+      background: var(--sage) !important; box-shadow: 0 7px 15px rgba(120,149,134,.25) !important;
+      font-family: 'DM Sans', sans-serif; letter-spacing: -.08em;
+    }
+    header .bg-slate-100 { background: #f2f0eb !important; border-color: var(--line) !important; }
+    header button { transition: all .2s ease; }
+    header button:hover { transform: translateY(-1px); }
+    #mode-customer, #mode-admin, #mode-layout {
+      font-size: 12px !important; border-radius: 11px !important; padding: 9px 15px !important;
+    }
+    #mode-customer.bg-white, #mode-admin.bg-white {
+      color: var(--sage-dark) !important; box-shadow: 0 4px 10px rgba(53,67,60,.08) !important;
+    }
+    #canvas-container { background: #ebe8e1; }
+    #admin-sidebar {
+      width: 348px !important; background: rgba(255,253,250,.97) !important;
+      border-color: var(--line) !important; box-shadow: -12px 0 32px rgba(53,67,60,.06) !important;
+    }
+    #admin-sidebar .bg-slate-50 { background: #f7f5f1 !important; }
+    #admin-sidebar .border-slate-200, #admin-sidebar .border-slate-300 { border-color: var(--line) !important; }
+    #admin-sidebar button { border-radius: 13px; }
+    #admin-sidebar .grid button {
+      min-height: 48px; background: #fbfaf7 !important; border-color: var(--line) !important;
+      color: #506058 !important; box-shadow: 0 2px 0 rgba(38,51,47,.02); transition: all .18s ease;
+    }
+    #admin-sidebar .grid button:hover {
+      background: #edf3ee !important; border-color: #bfd0c4 !important; color: var(--sage-dark) !important;
+      transform: translateY(-1px); box-shadow: var(--shadow-card);
+    }
+    #admin-sidebar input, #admin-sidebar select {
+      background: #fffdfa !important; border-color: var(--line) !important; color: var(--ink) !important;
+      border-radius: 10px !important;
+    }
+    #admin-sidebar input:focus, #admin-sidebar select:focus { border-color: #9db6a5 !important; box-shadow: 0 0 0 3px rgba(120,149,134,.13) !important; }
+    #inspector-panel { background: #f5f3ee !important; border-color: var(--line) !important; box-shadow: var(--shadow-card); }
+    #tab-btn-objects, #tab-btn-boundary, #tab-btn-colors { letter-spacing: -.02em; }
+    #tab-btn-objects.border-emerald-500, #tab-btn-boundary.border-emerald-500, #tab-btn-colors.border-emerald-500 {
+      border-color: var(--sage) !important; color: var(--sage-dark) !important;
+    }
+    .absolute.top-4.left-4 {
+      background: rgba(255,253,250,.94) !important; border-color: var(--line) !important;
+      box-shadow: var(--shadow-soft) !important; border-radius: 16px !important; color: var(--ink);
+    }
+    .table-label { border-color: #d8e1db !important; color: var(--ink) !important; box-shadow: 0 6px 16px rgba(53,67,60,.12) !important; }
+    #canvas-container > .absolute.bottom-4 {
+      background: rgba(255,253,250,.92) !important; border-color: var(--line) !important; color: var(--sage-dark) !important;
+      box-shadow: var(--shadow-soft) !important; border-radius: 14px !important;
+    }
+    #booking-modal > div {
+      border: 1px solid var(--line); box-shadow: 0 24px 70px rgba(38,51,47,.18) !important;
+      border-radius: 24px !important; background: var(--paper) !important;
+    }
+    #booking-modal button[type="submit"] { background: var(--sage) !important; border-radius: 13px !important; }
+    #booking-modal button[type="submit"]:hover { background: var(--sage-dark) !important; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #c9d5cc; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f4f1eb; }
+    input[type="range"] { accent-color: var(--sage) !important; }
+    .text-emerald-600 { color: var(--sage-dark) !important; }
+    .bg-emerald-500 { background-color: var(--sage) !important; }
+    .hover\:bg-emerald-600:hover { background-color: var(--sage-dark) !important; }
+  
+    /* 3D interior presentation + responsive layout */
+    #admin-sidebar { width: 292px !important; }
+    #admin-sidebar > div:last-child { padding: 12px !important; gap: 12px !important; }
+    #admin-sidebar .grid button { min-height: 40px; padding: 8px !important; font-size: 11px !important; }
+    #admin-sidebar label, #admin-sidebar span, #admin-sidebar input, #admin-sidebar select { font-size: 11px; }
+    #admin-sidebar .space-y-2 { gap: 6px !important; }
+    #canvas-container { min-width: 0; }
+    #theme-toggle { border-color: var(--line); background: #fffdfa; color: var(--ink); }
+    #theme-toggle.is-night { background: #293841; color: #f6e6bc; border-color: #43545e; }
+    @media (max-width: 900px) {
+      header { padding: 10px 14px !important; gap: 8px; flex-wrap: wrap; }
+      header > div:first-child { flex: 1 1 auto; min-width: 180px; }
+      header > div:nth-child(2) { order: 3; width: 100%; overflow-x: auto; }
+      header > div:nth-child(3) { margin-left: auto; }
+      header > div:nth-child(3) span { display: none; }
+      header > div:nth-child(3) button { padding: 7px 9px !important; font-size: 10px !important; }
+      #mode-customer, #mode-admin, #mode-layout { flex: 1; white-space: nowrap; font-size: 11px !important; padding: 8px 10px !important; }
+      #admin-sidebar { position: absolute; right: 0; top: 0; bottom: 0; width: min(292px, 86vw) !important; }
+      #canvas-container { width: 100%; }
+      .absolute.top-4.left-4 { top: 10px !important; left: 10px !important; transform: scale(.88); transform-origin: top left; }
+      #canvas-container > .absolute.bottom-4 { left: 10px !important; bottom: 10px !important; font-size: 10px !important; }
+    }
+    @media (max-width: 560px) {
+      header h1 { font-size: 14px !important; }
+      header p { display: none; }
+      header .w-9.h-9 { width: 34px !important; height: 34px !important; }
+      #admin-sidebar { width: 100% !important; top: auto; height: min(44vh, 360px); border-left: 0; border-top: 1px solid var(--line); }
+      #admin-sidebar .custom-scrollbar { padding-bottom: 22px !important; }
+      #canvas-container { height: 100%; }
+    }
+  
+    #tab-btn-reservations { display: block; }
+    #tab-btn-reservations.hidden { display: none !important; }
+    #reservation-panel .bg-emerald-500 { background: #789586 !important; }
+    @media (max-width: 560px) { #reservation-panel { top: 72px; right: 8px; bottom: 8px; width: calc(100vw - 16px); } }
+  
+    /* Unified side navigation / mobile bottom navigation */
+    #admin-sidebar { width: 318px !important; min-width: 318px; border-left: 1px solid var(--line); border-right: 0; }
+    #admin-sidebar > .flex.border-b { display: grid !important; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; border-bottom: 1px solid var(--line); background: #f8f7f2; }
+    #admin-sidebar > .flex.border-b button { border: 1px solid transparent; border-radius: 12px; padding: 11px 8px !important; text-align: left !important; line-height: 1.25; background: transparent; }
+    #admin-sidebar > .flex.border-b button.border-emerald-500 { border-color: #c8d8cc !important; background: #fff !important; box-shadow: 0 4px 12px rgba(53,67,60,.07); }
+    #admin-sidebar > .flex.border-b button { min-width: 0; }
+    #admin-sidebar > .flex.border-b button:nth-child(1)::after { content: ' จัดการเฟอร์นิเจอร์'; }
+    #admin-sidebar > .flex.border-b button:nth-child(2)::after { content: ' กำหนดขอบเขต'; }
+    #admin-sidebar > .flex.border-b button:nth-child(3)::after { content: ' โทนสี'; }
+    #admin-sidebar > .flex.border-b button:nth-child(4)::after { content: ' รายชื่อจอง'; }
+    #admin-sidebar > .flex.border-b button:nth-child(5)::after { content: ' ตั้งค่าการแสดงผล'; }
+    #admin-sidebar > .flex.border-b button:nth-child(6)::after { content: ' เชื่อมต่อข้อมูล'; }
+    #admin-sidebar .sidebar-extra-tab { display: block; }
+    #camera-toolbar { display: none !important; }
+    #reservation-panel { top: 76px; right: 334px; bottom: 18px; width: 380px; }
+    @media (max-width: 900px) {
+      #admin-sidebar { width: 300px !important; min-width: 300px; }
+      #reservation-panel { right: 308px; width: min(360px, 52vw); }
+    }
+    @media (max-width: 560px) {
+      body { padding-bottom: 68px; }
+      #admin-sidebar { position: fixed !important; z-index: 35; left: 0; right: 0; bottom: 0; top: auto; width: 100% !important; min-width: 0; height: 66px !important; border: 0; border-top: 1px solid var(--line); box-shadow: 0 -8px 24px rgba(53,67,60,.12); background: rgba(255,253,250,.97); }
+      #admin-sidebar > .flex.border-b { display: flex !important; height: 66px; padding: 6px 4px; gap: 2px; overflow-x: auto; }
+      #admin-sidebar > .flex.border-b button { flex: 1 0 76px; min-width: 76px; padding: 7px 4px !important; text-align: center !important; font-size: 10px !important; white-space: nowrap; }
+      #admin-sidebar > .flex.border-b button::after { display: block; content: '' !important; font-size: 9px; margin-top: 2px; }
+      #admin-sidebar > .flex.border-b button:nth-child(1)::after { content: 'เพิ่มวัตถุ' !important; }
+      #admin-sidebar > .flex.border-b button:nth-child(2)::after { content: 'ผังร้าน' !important; }
+      #admin-sidebar > .flex.border-b button:nth-child(3)::after { content: 'ปรับแต่ง' !important; }
+      #admin-sidebar > .flex.border-b button:nth-child(4)::after { content: 'รายชื่อจอง' !important; }
+      #admin-sidebar > .flex.border-b button:nth-child(5)::after { content: 'ตั้งค่า' !important; }
+      #admin-sidebar > .flex.border-b button:nth-child(6)::after { content: 'เชื่อมต่อ' !important; }
+      #admin-sidebar > .flex-1.overflow-y-auto { display: none; }
+      #reservation-panel { top: auto; right: 8px; bottom: 74px; left: 8px; width: auto; height: min(70vh, 560px); }
+      #mode-customer, #mode-admin, #mode-layout { padding: 7px 8px !important; font-size: 10px !important; }
+      #mode-customer span, #mode-admin span, #mode-layout span { display: none; }
+    }
+  
+    /* Always-visible quick actions */
+    #labels-container { z-index: 20 !important; }
+    #quick-actions { position: absolute; top: 16px; right: 16px; z-index: 25; display: flex; gap: 8px; }
+    #quick-actions button { border: 1px solid var(--line); background: rgba(255,253,250,.95); color: var(--ink); box-shadow: var(--shadow-soft); border-radius: 12px; padding: 9px 12px; font-size: 11px; font-weight: 700; backdrop-filter: blur(10px); }
+    #quick-actions #quick-night.is-night { background: #293841; color: #f6e6bc; border-color: #43545e; }
+    #quick-actions #quick-animation { background: #f2effa; color: #65547d; border-color: #d9ccec; }
+    #quick-actions #quick-seat-view { background: rgba(237,243,238,.96); color: var(--sage-dark); border-color: #d8e5db; }
+    /* Keep admin access discreet and consistent with the Korean café aesthetic. */
+    #customer-landing .landing-secondary { color: #7c8780; background: rgba(255,253,250,.58); border-color: #e8e5de; }
+    #customer-landing .landing-secondary:hover { color: var(--sage-dark); background: #fffdfa; }
+    #admin-login-modal { background: rgba(38,51,47,.24); backdrop-filter: blur(5px); }
+    #admin-login-modal .admin-login-card { width: min(350px, 100%); padding: 23px; border-radius: 20px; box-shadow: 0 16px 48px rgba(38,51,47,.16); }
+    #admin-login-modal .admin-login-icon { width: 34px; height: 34px; margin-bottom: 11px; border-radius: 11px; font-size: 15px; background: #f1f3ee; color: #7c8780; }
+    #admin-login-modal h2 { font-size: 19px; font-weight: 700; }
+    #admin-login-modal p { font-size: 10px; }
+    @media (max-width: 560px) { #quick-actions { top: 10px; right: 10px; gap: 5px; } #quick-actions button { padding: 8px 9px; font-size: 10px; } }
+
+    /* Customer mode: compact non-blocking status bar and clear table feedback */
+    #customer-status-bar { position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 24; pointer-events: none; display: flex; justify-content: center; }
+    #customer-status-bar .customer-status-inner { max-width: min(760px, calc(100vw - 32px)); width: 100%; background: rgba(255,253,250,.94); border: 1px solid var(--line); border-radius: 16px; padding: 10px 14px; box-shadow: var(--shadow-soft); backdrop-filter: blur(12px); color: var(--ink); }
+    #customer-status-bar .status-counts { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: center; font-size: 11px; }
+    #customer-status-bar .status-detail { text-align: center; margin-top: 4px; font-size: 11px; color: var(--sage-dark); font-weight: 700; }
+    .table-label.customer-available { animation: tableFloat 2.2s ease-in-out infinite; border-color: #b8d7c0 !important; }
+    .table-label.customer-reserved { border-color: #e7b5b1 !important; background: rgba(255,247,246,.96); }
+    .table-label.customer-selected { animation: selectedGlow 1.1s ease-in-out infinite alternate; border-color: #d6b873 !important; }
+    @keyframes tableFloat { 0%,100% { transform: translate(-50%,-50%) translateY(0); } 50% { transform: translate(-50%,-50%) translateY(-4px); } }
+    @keyframes selectedGlow { from { box-shadow: 0 0 0 2px rgba(201,143,139,.08), 0 6px 16px rgba(53,67,60,.12); } to { box-shadow: 0 0 0 5px rgba(201,143,139,.22), 0 8px 22px rgba(53,67,60,.18); } }
+    #reservation-panel.customer-panel { right: 16px; width: min(330px, calc(100vw - 32px)); bottom: 84px; top: auto; height: min(46vh, 420px); }
+    @media (max-width: 560px) { #customer-status-bar { left: 8px; right: 8px; bottom: 76px; } #customer-status-bar .customer-status-inner { max-width: calc(100vw - 16px); } #reservation-panel.customer-panel { left: 8px; right: 8px; bottom: 74px; width: auto; height: min(56vh, 440px); } }
+
+    /* Customer landing page shown before entering the interactive booking map */
+    #customer-landing { position: fixed; inset: 0; z-index: 60; overflow-y: auto; background: linear-gradient(135deg, #f7f5f1 0%, #eef3ed 52%, #e8eee9 100%); }
+    #customer-landing .landing-shell { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 28px 18px; }
+    #customer-landing .landing-card { width: min(980px, 100%); display: grid; grid-template-columns: 1.08fr .92fr; overflow: hidden; border: 1px solid rgba(120,149,134,.24); border-radius: 32px; background: rgba(255,253,250,.86); box-shadow: 0 28px 80px rgba(53,67,60,.15); backdrop-filter: blur(16px); }
+    #customer-landing .landing-copy { padding: clamp(30px, 6vw, 72px); }
+    #customer-landing .landing-art { min-height: 420px; position: relative; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 38%, #d8e5da 0 14%, transparent 15%), linear-gradient(145deg, #c2d5c6, #8da998); }
+    #customer-landing .landing-art::before { content: ''; width: 220px; height: 220px; border: 1px solid rgba(255,255,255,.68); border-radius: 50%; box-shadow: 0 0 0 28px rgba(255,255,255,.12), 0 0 0 56px rgba(255,255,255,.08); }
+    #customer-landing .landing-art::after { content: 'ATELIER'; position: absolute; color: rgba(255,255,255,.82); font: 600 12px 'DM Sans', sans-serif; letter-spacing: .34em; transform: translateY(150px); }
+    #customer-landing .landing-eyebrow { color: var(--sage-dark); font: 700 11px 'DM Sans', sans-serif; letter-spacing: .18em; text-transform: uppercase; }
+    #customer-landing h2 { margin: 12px 0 14px; color: var(--ink); font-size: clamp(32px, 5vw, 58px); line-height: 1.08; letter-spacing: -.06em; }
+    #customer-landing .landing-copy p { color: var(--muted); font-size: 14px; line-height: 1.8; max-width: 520px; }
+    #customer-landing .landing-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+    #customer-landing .landing-actions button { border-radius: 13px; padding: 12px 18px; font-size: 13px; font-weight: 700; transition: transform .18s ease, box-shadow .18s ease; }
+    #customer-landing .landing-actions button:hover { transform: translateY(-2px); box-shadow: 0 9px 18px rgba(53,67,60,.12); }
+    #customer-landing .landing-primary { background: var(--sage); color: white; }
+    #customer-landing .landing-secondary { background: #fffdfa; border: 1px solid var(--line); color: var(--sage-dark); }
+    #customer-landing .landing-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 30px; }
+    #customer-landing .landing-feature { padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.55); color: var(--ink); font-size: 11px; line-height: 1.55; }
+    #customer-landing .landing-feature strong { display: block; margin-bottom: 3px; color: var(--sage-dark); }
+    @media (max-width: 700px) { #customer-landing .landing-card { grid-template-columns: 1fr; } #customer-landing .landing-art { min-height: 180px; order: -1; } #customer-landing .landing-art::before { width: 110px; height: 110px; box-shadow: 0 0 0 16px rgba(255,255,255,.12), 0 0 0 32px rgba(255,255,255,.08); } #customer-landing .landing-art::after { transform: translateY(78px); } #customer-landing .landing-copy { padding: 30px 24px 34px; } #customer-landing .landing-features { grid-template-columns: 1fr; } }
+
+    /* Admin dashboard usability layer */
+    #admin-sidebar { background: #fbfaf7 !important; }
+    #admin-sidebar .admin-sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 15px 14px 12px; background: #fffdfa; border-bottom: 1px solid var(--line); }
+    #admin-sidebar .admin-sidebar-head h2 { color: var(--ink); font-size: 14px; font-weight: 800; letter-spacing: -.03em; }
+    #admin-sidebar .admin-sidebar-head p { color: var(--muted); margin-top: 2px; font-size: 10px; }
+    #admin-sidebar .admin-live-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px; border-radius: 999px; background: #edf6ef; color: var(--sage-dark); font-size: 9px; font-weight: 800; white-space: nowrap; }
+    #admin-sidebar .admin-live-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #6ca77c; box-shadow: 0 0 0 3px rgba(108,167,124,.15); }
+    #admin-sidebar > .flex.border-b { position: sticky; top: 0; z-index: 3; }
+    #admin-sidebar > .flex-1.overflow-y-auto { background: #f7f5f1; }
+    #admin-sidebar #tab-content-reservations > div:first-child { padding-bottom: 2px; }
+    #admin-sidebar .admin-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+    #admin-sidebar .admin-stat { padding: 10px 8px; border: 1px solid var(--line); border-radius: 13px; background: #fffdfa; box-shadow: 0 3px 10px rgba(53,67,60,.04); }
+    #admin-sidebar .admin-stat b { display: block; color: var(--ink); font: 800 18px 'DM Sans', sans-serif; line-height: 1; }
+    #admin-sidebar .admin-stat span { display: block; margin-top: 5px; color: var(--muted); font-size: 9px; }
+    #admin-sidebar .admin-section-label { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    #admin-sidebar #tab-content-reservations .admin-primary-action { background: var(--sage) !important; box-shadow: 0 5px 12px rgba(120,149,134,.22); }
+    #admin-sidebar #tab-content-reservations .admin-primary-action:hover { background: var(--sage-dark) !important; }
+    #admin-sidebar #reservation-list > div { border-color: var(--line); box-shadow: 0 3px 10px rgba(53,67,60,.04); }
+    @media (max-width: 560px) { #admin-sidebar .admin-sidebar-head { display: none; } #admin-sidebar .admin-stat-grid { grid-template-columns: repeat(3, 1fr); } }
+
+    /* Admin login gate */
+    #admin-login-modal { position: fixed; inset: 0; z-index: 75; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(38,51,47,.48); backdrop-filter: blur(12px); }
+    #admin-login-modal.hidden { display: none !important; }
+    #admin-login-modal .admin-login-card { width: min(390px, 100%); padding: 28px; border: 1px solid var(--line); border-radius: 24px; background: var(--paper); box-shadow: 0 25px 80px rgba(38,51,47,.25); }
+    #admin-login-modal .admin-login-icon { width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 16px; border-radius: 14px; background: #e9f1eb; color: var(--sage-dark); font-size: 20px; }
+    #admin-login-modal h2 { color: var(--ink); font-size: 22px; font-weight: 800; letter-spacing: -.04em; }
+    #admin-login-modal p { margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+    #admin-login-modal label { display: block; margin: 18px 0 6px; color: var(--ink); font-size: 11px; font-weight: 700; }
+    #admin-login-modal input { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 11px; outline: none; background: #fffdfa; color: var(--ink); font-size: 13px; }
+    #admin-login-modal input:focus { border-color: #9db6a5; box-shadow: 0 0 0 3px rgba(120,149,134,.13); }
+    #admin-login-error { min-height: 17px; margin-top: 7px; color: #b55d58; font-size: 10px; }
+    #admin-login-modal .login-actions { display: flex; gap: 8px; margin-top: 15px; }
+    #admin-login-modal .login-actions button { flex: 1; padding: 11px 12px; border-radius: 11px; font-size: 12px; font-weight: 700; }
+    #admin-login-modal .login-submit { background: var(--sage); color: #fff; }
+    #admin-login-modal .login-cancel { border: 1px solid var(--line); background: #fffdfa; color: var(--muted); }
+    /* Final overrides: understated café-style admin sign-in. */
+    #admin-login-modal { background: rgba(38,51,47,.24); backdrop-filter: blur(5px); }
+    #admin-login-modal .admin-login-card { width: min(350px, 100%); padding: 23px; border-radius: 20px; box-shadow: 0 16px 48px rgba(38,51,47,.16); }
+    #admin-login-modal .admin-login-icon { width: 34px; height: 34px; margin-bottom: 11px; border-radius: 11px; font-size: 15px; background: #f1f3ee; color: #7c8780; }
+    #admin-login-modal h2 { font-size: 19px; font-weight: 700; }
+    #admin-login-modal p { font-size: 10px; }
+
+    /* ================================================================
+       ATELIER — complete visual redesign: modern Seoul neighbourhood café
+       Keeps existing controls and interactions; presentation layer only.
+       ================================================================ */
+    :root {
+      --ink: #26352f;
+      --muted: #7c8981;
+      --sage: #718c7b;
+      --sage-dark: #496554;
+      --cream: #f4f1e9;
+      --paper: #fffdf8;
+      --line: #e6e1d6;
+      --rose: #c98d83;
+      --lavender: #a89bb8;
+      --shadow-soft: 0 18px 48px rgba(50, 61, 53, .10);
+      --shadow-card: 0 7px 24px rgba(50, 61, 53, .075);
+    }
+    html, body { background: var(--cream) !important; color: var(--ink); }
+    body { font-family: 'Noto Sans Thai', sans-serif; letter-spacing: -.018em; }
+    button, input, select { font-family: inherit; }
+    button { transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease, border-color .18s ease !important; }
+    button:not(:disabled):hover { filter: saturate(1.04); }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(113,140,123,.28); outline-offset: 2px; }
+
+    /* Calm, editorial masthead */
+    body > header {
+      min-height: 76px; padding: 12px 24px !important; gap: 18px;
+      background: rgba(255,253,248,.96) !important; border-bottom: 1px solid var(--line) !important;
+      box-shadow: 0 4px 20px rgba(50,61,53,.045) !important; backdrop-filter: blur(18px);
+    }
+    header .w-9.h-9 { width: 44px !important; height: 44px !important; border-radius: 15px !important; background: var(--sage-dark) !important; box-shadow: 0 8px 18px rgba(73,101,84,.2) !important; }
+    header h1 { font-family: 'DM Sans','Noto Sans Thai',sans-serif; font-size: 15px !important; letter-spacing: -.045em !important; }
+    header p { font-size: 9px !important; letter-spacing: .17em !important; }
+    header > div:nth-child(2) { padding: 4px; border: 1px solid #ece8df; border-radius: 15px; background: #f5f2eb; }
+    #mode-customer, #mode-admin, #mode-layout { border-radius: 11px !important; padding: 9px 13px !important; font-size: 11px !important; }
+    #mode-customer.bg-white, #mode-admin.bg-white, #mode-layout.bg-white { background: var(--sage-dark) !important; color: #fffdf8 !important; box-shadow: 0 5px 12px rgba(73,101,84,.18) !important; }
+
+    /* Customer entrance: new split editorial cover with refined typography */
+    #customer-landing { background: #e9e7dc !important; }
+    #customer-landing .landing-shell { padding: clamp(14px,4vw,54px); }
+    #customer-landing .landing-card {
+      position: relative; isolation: isolate; width: min(1120px,100%); min-height: min(690px, calc(100vh - 48px));
+      grid-template-columns: 1.02fr .98fr; border: 1px solid rgba(255,255,255,.75); border-radius: 10px 34px 10px 34px;
+      background: var(--paper); box-shadow: 0 34px 100px rgba(48,59,51,.18); overflow: hidden;
+    }
+    #customer-landing .landing-copy { position: relative; z-index: 2; display:flex; flex-direction:column; justify-content:center; padding: clamp(32px,6.6vw,82px); }
+    #customer-landing .landing-eyebrow { display:flex; align-items:center; gap:10px; color:var(--sage-dark); font-size:9px; letter-spacing:.23em; }
+    #customer-landing .landing-eyebrow::before { content:''; width:26px; height:1px; background:var(--rose); }
+    #customer-landing h2 { margin:20px 0 18px; font-size:clamp(35px,5vw,62px); line-height:1.16; letter-spacing:-.075em; font-weight:500; }
+    #customer-landing .landing-copy p { max-width:410px; color:#7b8179; font-size:12px; line-height:2; }
+    #customer-landing .landing-actions { margin-top:30px; gap:11px; }
+    #customer-landing .landing-actions button { border-radius:3px 14px 3px 14px; padding:13px 19px; font-size:11px; }
+    #customer-landing .landing-primary { background:var(--sage-dark); box-shadow:0 8px 20px rgba(73,101,84,.17); }
+    #customer-landing .landing-secondary { background:transparent; border-color:#e6e1d6; color:#8a918b; }
+    #customer-landing .landing-features { margin-top:40px; gap:0; border-top:1px solid var(--line); }
+    #customer-landing .landing-feature { padding:15px 10px 0 0; border:0; background:transparent; color:#858a83; font-size:9px; }
+    #customer-landing .landing-feature strong { color:var(--sage-dark); font-size:9px; letter-spacing:.025em; }
+    #customer-landing .landing-art {
+      min-height:500px; overflow:hidden; background:
+      linear-gradient(180deg,rgba(35,49,41,.02),rgba(35,49,41,.25)),
+      radial-gradient(ellipse at 50% 77%,#c0a78b 0 5%,transparent 5.5%),
+      radial-gradient(ellipse at 50% 73%,#8a6d54 0 11%,transparent 11.5%),
+      radial-gradient(ellipse at 51% 52%,#f2e9d6 0 17%,transparent 17.5%),
+      radial-gradient(ellipse at 50% 47%,#9eb0a0 0 33%,transparent 33.5%),
+      linear-gradient(145deg,#d8d9c9 0%,#b8c1b1 48%,#879b8b 100%);
+    }
+    #customer-landing .landing-art::before { width:min(58%,340px); height:min(58%,340px); border:1px solid rgba(255,255,255,.68); border-radius:50%; box-shadow:0 0 0 22px rgba(255,255,255,.11),0 0 0 54px rgba(255,255,255,.07),0 0 0 90px rgba(255,255,255,.045); }
+    #customer-landing .landing-art::after { content:'SLOW MOMENTS · SEOUL'; bottom:28px; left:30px; right:auto; transform:none; color:rgba(255,255,255,.88); font:500 9px 'DM Sans',sans-serif; letter-spacing:.24em; }
+
+    /* 3D space and overlays */
+    #canvas-container { background:#e9e7df !important; }
+    #canvas-container canvas { outline:none; }
+    .absolute.top-4.left-4 { top:18px !important; left:18px !important; border:1px solid rgba(230,225,214,.9) !important; border-radius:4px 16px 4px 16px !important; background:rgba(255,253,248,.94) !important; box-shadow:var(--shadow-card) !important; padding:10px 14px !important; }
+    #canvas-container > .absolute.bottom-4 { left:18px !important; bottom:18px !important; border-radius:4px 14px 4px 14px !important; background:rgba(255,253,248,.92) !important; }
+    #quick-actions { top:16px !important; right:16px !important; gap:7px !important; }
+    #quick-actions button { border:1px solid rgba(230,225,214,.9) !important; border-radius:4px 12px 4px 12px !important; padding:10px 12px !important; background:rgba(255,253,248,.95) !important; color:var(--ink) !important; box-shadow:var(--shadow-card) !important; font-size:10px !important; }
+    #quick-actions #quick-seat-view { background:var(--sage-dark) !important; color:#fffdf8 !important; border-color:var(--sage-dark) !important; }
+    #customer-status-bar .customer-status-inner { border:1px solid rgba(230,225,214,.95) !important; border-radius:4px 18px 4px 18px !important; background:rgba(255,253,248,.96) !important; box-shadow:var(--shadow-soft) !important; }
+    .table-label { border-radius:4px 12px 4px 12px !important; border-color:#e2ded2 !important; }
+
+    /* Admin workbench: warm paper, quiet borders, one consistent rhythm */
+    #admin-sidebar { width:330px !important; min-width:330px !important; background:#fbfaf6 !important; border-left:1px solid var(--line) !important; box-shadow:-14px 0 36px rgba(50,61,53,.07) !important; }
+    #admin-sidebar .admin-sidebar-head { padding:18px 16px 15px !important; background:var(--paper) !important; }
+    #admin-sidebar .admin-sidebar-head h2 { font-size:14px !important; letter-spacing:-.04em; }
+    #admin-sidebar > .flex.border-b { background:#f4f1e9 !important; padding:10px !important; gap:5px !important; }
+    #admin-sidebar > .flex.border-b button { border-radius:3px 12px 3px 12px !important; color:#7b857e; }
+    #admin-sidebar > .flex.border-b button.border-emerald-500 { background:var(--paper) !important; border-color:#d9e2da !important; color:var(--sage-dark) !important; box-shadow:0 5px 14px rgba(50,61,53,.06) !important; }
+    #admin-sidebar > .flex-1.overflow-y-auto { background:#fbfaf6 !important; padding:14px !important; }
+    #admin-sidebar .admin-stat, #admin-sidebar .bg-white, #admin-sidebar .bg-slate-50 { border-color:var(--line) !important; }
+    #admin-sidebar .admin-stat { border-radius:4px 14px 4px 14px !important; background:var(--paper) !important; }
+    #admin-sidebar .grid button { border-radius:4px 12px 4px 12px !important; }
+    #admin-sidebar input, #admin-sidebar select { min-height:38px; border-radius:4px 11px 4px 11px !important; }
+    #reservation-panel { border:1px solid var(--line) !important; border-radius:5px 20px 5px 20px !important; background:var(--paper) !important; box-shadow:var(--shadow-soft) !important; }
+    #reservation-panel > div { border-color:var(--line) !important; }
+    #booking-modal { backdrop-filter:blur(5px); }
+    #booking-modal > div { border-radius:5px 22px 5px 22px !important; background:var(--paper) !important; }
+
+    /* A discreet, compact sign-in card */
+    #admin-login-modal { background:rgba(38,53,47,.22) !important; backdrop-filter:blur(5px) !important; }
+    #admin-login-modal .admin-login-card { width:min(350px,100%) !important; padding:24px !important; border:1px solid rgba(230,225,214,.9) !important; border-radius:5px 20px 5px 20px !important; background:var(--paper) !important; box-shadow:0 22px 70px rgba(38,53,47,.17) !important; }
+    #admin-login-modal .admin-login-icon { width:34px !important; height:34px !important; margin-bottom:12px !important; border-radius:4px 12px 4px 12px !important; background:#f1f3ee !important; color:var(--sage-dark) !important; font-size:14px !important; }
+    #admin-login-modal h2 { font-size:18px !important; font-weight:700 !important; }
+    #admin-login-modal p { font-size:10px !important; }
+    #admin-login-modal input { border-radius:4px 11px 4px 11px !important; }
+    #admin-login-modal .login-submit { background:var(--sage-dark) !important; }
+    #admin-login-modal .login-cancel { border-color:var(--line) !important; }
+
+    @media (max-width:900px) {
+      body > header { padding:10px 14px !important; }
+      #admin-sidebar { width:300px !important; min-width:300px !important; }
+      #customer-landing .landing-card { min-height:0; }
+      #customer-landing .landing-copy { padding:clamp(24px,5vw,52px); }
+    }
+    @media (max-width:700px) {
+      #customer-landing .landing-card { border-radius:6px 22px 6px 22px; }
+      #customer-landing .landing-art { min-height:210px; }
+      #customer-landing .landing-copy { padding:25px 22px 28px; }
+      #customer-landing .landing-features { grid-template-columns:repeat(3,1fr); }
+      #customer-landing .landing-feature { padding-right:6px; font-size:8px; }
+    }
+    @media (max-width:560px) {
+      body > header { min-height:auto; padding:9px 10px !important; gap:7px; }
+      header .w-9.h-9 { width:36px !important; height:36px !important; border-radius:12px !important; }
+      header > div:nth-child(2) { padding:3px; }
+      #admin-sidebar { width:100% !important; min-width:0 !important; height:66px !important; border-radius:16px 16px 0 0; }
+      #admin-sidebar > .flex.border-b { border-radius:16px 16px 0 0; }
+      #quick-actions { top:8px !important; right:8px !important; max-width:calc(100vw - 16px); flex-wrap:wrap; justify-content:flex-end; }
+      #quick-actions button { padding:7px 8px !important; font-size:9px !important; }
+      .absolute.top-4.left-4 { top:8px !important; left:8px !important; transform:scale(.78); transform-origin:top left; }
+      #canvas-container > .absolute.bottom-4 { left:8px !important; bottom:76px !important; }
+      #customer-status-bar { bottom:76px !important; }
+    }
+
+    /* JAAB BAR identity — soft ivory and confident mustard, with restrained motion */
+    :root { --ink:#302f29; --muted:#898477; --sage:#d8ad36; --sage-dark:#98751c; --cream:#f8f6ef; --paper:#fffefa; --line:#e9e3d3; --rose:#d2a83b; --shadow-soft:0 18px 48px rgba(77,64,29,.10); --shadow-card:0 7px 24px rgba(77,64,29,.075); }
+    html,body,#canvas-container { background-color:#f7f5ee !important; }
+    body > header { background:rgba(255,254,250,.96) !important; border-color:#ebe6d9 !important; }
+    header .w-9.h-9, header .jaab-mark { background:#d5a928 !important; color:#fffdf7 !important; box-shadow:0 7px 18px rgba(190,146,27,.3) !important; }
+    header .jaab-mark { font-family:'DM Sans',sans-serif; font-size:21px !important; font-weight:700; transform:rotate(-7deg); }
+    header h1 { color:#302f29 !important; }
+    header h1 span { font-family:'Noto Sans Thai',sans-serif; font-size:11px; font-weight:500; color:#898477; letter-spacing:0; }
+    #customer-landing { background:radial-gradient(ellipse at 80% 15%,#f7e8b4 0,transparent 36%),linear-gradient(135deg,#f8f6ef,#f3efe3 58%,#eee8d7) !important; }
+    #customer-landing .landing-card { background:#fffefa !important; border-color:rgba(255,255,255,.94) !important; box-shadow:0 34px 100px rgba(92,74,25,.14) !important; }
+    #customer-landing .landing-copy { overflow:hidden; }
+    #customer-landing .landing-eyebrow { color:#9b791f !important; }
+    #customer-landing .landing-eyebrow::before { background:#d5a928 !important; }
+    #customer-landing h2 { margin-top:24px; }
+    .jaab-brand { display:inline-flex; align-items:baseline; color:#302f29; font-size:clamp(52px,8vw,96px); line-height:1.06; font-weight:800; letter-spacing:-.09em; text-shadow:0 5px 0 rgba(213,169,40,.10); }
+    .jaab-brand > span:not(.brand-gap) { display:inline-block; transform-origin:50% 85%; animation:jaabPop .72s cubic-bezier(.2,.8,.2,1) both; }
+    .jaab-brand > span:nth-child(1){animation-delay:.08s}.jaab-brand > span:nth-child(2){animation-delay:.16s}.jaab-brand > span:nth-child(3){animation-delay:.24s}.jaab-brand > span:nth-child(5){animation-delay:.34s}.jaab-brand > span:nth-child(6){animation-delay:.42s}.jaab-brand > span:nth-child(7){animation-delay:.50s}
+    .jaab-brand > span:nth-child(3),.jaab-brand > span:nth-child(7) { color:#c29520; }
+    .jaab-brand::after { content:''; width:13px; height:13px; margin:0 0 5px 9px; border-radius:50%; background:#d5a928; box-shadow:0 0 0 6px rgba(213,169,40,.16); animation:brandPulse 2.2s ease-in-out infinite; }
+    .jaab-subtitle { display:inline-block; margin-top:18px; color:#79766c; font-size:clamp(13px,1.6vw,18px); font-weight:500; letter-spacing:-.035em; }
+    #customer-landing .landing-primary { background:#c99b22 !important; box-shadow:0 9px 22px rgba(190,146,27,.23) !important; }
+    #customer-landing .landing-primary:hover { background:#ae8318 !important; }
+    #customer-landing .landing-feature strong { color:#98751c !important; }
+    #customer-landing .landing-art { background:
+      radial-gradient(ellipse at 56% 78%,#c9ab6b 0 5%,transparent 5.5%),
+      radial-gradient(ellipse at 56% 73%,#886d44 0 11%,transparent 11.5%),
+      radial-gradient(ellipse at 55% 51%,#fff3d2 0 17%,transparent 17.5%),
+      radial-gradient(ellipse at 55% 47%,#d8bd72 0 33%,transparent 33.5%),
+      linear-gradient(145deg,#f6eac8 0%,#e4d39e 49%,#c5b16d 100%) !important; }
+    #customer-landing .landing-art::before { border-color:rgba(255,255,255,.8) !important; box-shadow:0 0 0 22px rgba(255,255,255,.17),0 0 0 54px rgba(255,255,255,.1),0 0 0 90px rgba(255,255,255,.06) !important; animation:artHalo 8s ease-in-out infinite; }
+    #customer-landing .landing-art::after { content:'JAAB BER · SEOUL CAFÉ' !important; color:rgba(67,56,30,.72) !important; }
+    #mode-customer.bg-white,#mode-admin.bg-white,#mode-layout.bg-white { background:#c99b22 !important; color:#fffdf7 !important; box-shadow:0 5px 12px rgba(190,146,27,.2) !important; }
+    #quick-actions #quick-seat-view { background:#c99b22 !important; border-color:#c99b22 !important; color:#fffdf7 !important; }
+    #admin-sidebar .admin-live-pill { background:#faf1d7 !important; color:#876919 !important; }
+    #admin-sidebar .admin-live-pill::before { background:#d1a329 !important; }
+    #admin-sidebar > .flex.border-b button.border-emerald-500 { border-color:#ead9a4 !important; color:#876919 !important; }
+    #admin-sidebar #tab-content-reservations .admin-primary-action,#booking-modal button[type="submit"],#admin-login-modal .login-submit { background:#c99b22 !important; }
+    #admin-sidebar #tab-content-reservations .admin-primary-action:hover,#booking-modal button[type="submit"]:hover { background:#ae8318 !important; }
+    .text-emerald-600 { color:#98751c !important; }
+    .bg-emerald-500 { background-color:#d3a72c !important; }
+    .table-label.customer-available { border-color:#dfc56f !important; }
+    #admin-login-modal .admin-login-icon { background:#faf1d7 !important; color:#98751c !important; }
+    #admin-login-modal input:focus { border-color:#d5b452 !important; box-shadow:0 0 0 3px rgba(213,169,40,.15) !important; }
+    @keyframes jaabPop { 0% { opacity:0; transform:translateY(24px) rotate(9deg) scale(.72); filter:blur(5px); } 68% { opacity:1; transform:translateY(-5px) rotate(-2deg) scale(1.06); filter:blur(0); } 100% { opacity:1; transform:translateY(0) rotate(0) scale(1); } }
+    @keyframes brandPulse { 0%,100% { transform:scale(.85); box-shadow:0 0 0 5px rgba(213,169,40,.12); } 50% { transform:scale(1.12); box-shadow:0 0 0 10px rgba(213,169,40,.06); } }
+    @keyframes artHalo { 0%,100% { transform:scale(.96); opacity:.76; } 50% { transform:scale(1.04); opacity:1; } }
+    @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; } }
+
+    /* Alternate cover: centered single-column layout without the side artwork */
+    #customer-landing .landing-shell { min-height:100%; padding:clamp(16px,5vw,64px); }
+    #customer-landing .landing-card { display:block !important; width:min(920px,100%) !important; min-height:0 !important; overflow:visible !important; border-radius:8px 34px 8px 34px !important; }
+    #customer-landing .landing-art { display:none !important; }
+    #customer-landing .landing-copy { min-height:min(660px,calc(100vh - 64px)); align-items:center; text-align:center; padding:clamp(34px,7vw,82px) !important; }
+    #customer-landing .landing-eyebrow { justify-content:center; }
+    #customer-landing .landing-eyebrow::after { content:''; width:26px; height:1px; background:#d5a928; }
+    #customer-landing .jaab-brand { justify-content:center; font-size:clamp(64px,11vw,124px); }
+    #customer-landing .jaab-subtitle { display:block; }
+    #customer-landing .landing-copy p { max-width:510px; margin:0 auto; }
+    #customer-landing .landing-actions { justify-content:center; }
+    #customer-landing .landing-features { width:min(640px,100%); margin:clamp(30px,5vw,54px) auto 0; text-align:left; }
+    @media(max-width:700px) {
+      #customer-landing .landing-shell { padding:14px; }
+      #customer-landing .landing-copy { min-height:0; padding:34px 22px 30px !important; }
+      #customer-landing .landing-features { grid-template-columns:1fr; }
+      #customer-landing .landing-feature { padding:9px 0; border-bottom:1px solid #eee9dd; }
+    }
+
+    /* JAAB BAR alternate palette: crisp ivory with Leo-inspired red accents */
+    :root { --sage:#d3293b; --sage-dark:#b5122a; --rose:#cf2338; --line:#eadfdd; --cream:#f8f5f2; }
+    #customer-landing { background:radial-gradient(ellipse at 50% 0%,#f7e6e6 0,transparent 45%),linear-gradient(135deg,#faf8f5,#f2ebea) !important; }
+    #customer-landing .landing-eyebrow { color:#a9152b !important; }
+    #customer-landing .landing-eyebrow::before,#customer-landing .landing-eyebrow::after { background:#c91430 !important; }
+    .jaab-brand > span:nth-child(3),.jaab-brand > span:nth-child(7) { color:#c91430 !important; }
+    .jaab-brand::after { background:#c91430 !important; box-shadow:0 0 0 6px rgba(201,20,48,.14); }
+    #customer-landing .landing-primary,#mode-customer.bg-white,#mode-admin.bg-white,#mode-layout.bg-white,
+    #quick-actions #quick-seat-view,#admin-sidebar #tab-content-reservations .admin-primary-action,
+    #booking-modal button[type="submit"],#admin-login-modal .login-submit { background:#c91430 !important; border-color:#c91430 !important; color:#fff !important; }
+    #customer-landing .landing-primary:hover,#admin-sidebar #tab-content-reservations .admin-primary-action:hover,
+    #booking-modal button[type="submit"]:hover { background:#a90f27 !important; }
+    #customer-landing .landing-feature strong,#admin-sidebar .admin-live-pill,
+    #admin-sidebar > .flex.border-b button.border-emerald-500 { color:#a9152b !important; }
+    #admin-sidebar .admin-live-pill { background:#fae9e9 !important; }
+    #admin-sidebar .admin-live-pill::before { background:#c91430 !important; }
+    #admin-sidebar > .flex.border-b button.border-emerald-500 { border-color:#ecc8cd !important; }
+    .text-emerald-600 { color:#b5122a !important; }
+    .bg-emerald-500 { background-color:#cf2338 !important; }
+    .table-label.customer-available { border-color:#e5b9bf !important; }
+    #admin-login-modal .admin-login-icon { background:#fae9e9 !important; color:#b5122a !important; }
+    #admin-login-modal input:focus { border-color:#d87380 !important; box-shadow:0 0 0 3px rgba(201,20,48,.13) !important; }
+    #customer-landing .landing-art { background:linear-gradient(145deg,#f4d9dc,#d98690 55%,#b5122a) !important; }
+    #customer-landing .landing-art::after { content:'JAAB BER · SEOUL CAFÉ' !important; color:rgba(255,255,255,.9) !important; }
+    #customer-landing .landing-copy { gap:0; }
+    #customer-landing .landing-features { margin-top:clamp(30px,5vw,54px); }
+
+    /* Poster-inspired JAAB BAR launch cover: tactile vermilion wall and handset shadow */
+    #customer-landing {
+      background-color:#e9531d !important;
+      background-image:radial-gradient(ellipse at 17% 12%,rgba(255,173,90,.42),transparent 34%),radial-gradient(ellipse at 82% 84%,rgba(151,37,15,.23),transparent 40%),repeating-linear-gradient(117deg,rgba(255,255,255,.025) 0 1px,transparent 1px 5px),linear-gradient(145deg,#f05a22,#de3e12 65%,#c93611) !important;
+      overflow:hidden;
+    }
+    #customer-landing::before { content:''; position:fixed; inset:-25%; pointer-events:none; opacity:.16; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E"); mix-blend-mode:soft-light; }
+    #customer-landing .landing-shell { min-height:100%; padding:20px; }
+    #customer-landing .landing-card { position:relative; isolation:isolate; display:block !important; width:min(620px,100%) !important; min-height:min(900px,calc(100vh - 40px)) !important; overflow:hidden !important; border:0 !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; }
+    #customer-landing .landing-card::before {
+      content:''; position:absolute; z-index:-1; width:min(54vw,340px); height:min(75vw,540px); min-height:400px; left:50%; top:49%;
+      transform:translate(-50%,-50%) rotate(-4deg); border-radius:42px; background:rgba(83,22,7,.72);
+      box-shadow:0 22px 38px rgba(71,20,7,.38),0 0 2px 2px rgba(94,31,12,.22); filter:blur(7px); opacity:.82;
+      animation:posterShadow 8s ease-in-out infinite;
+    }
+    #customer-landing .landing-card::after { content:''; position:absolute; z-index:-1; width:32px; height:210px; left:calc(50% + min(27vw,170px)); top:40%; border-radius:20px; background:rgba(83,22,7,.68); filter:blur(8px); transform:rotate(-4deg); box-shadow:0 62px 0 rgba(83,22,7,.62),0 125px 0 rgba(83,22,7,.56); }
+    #customer-landing .landing-copy { position:relative; min-height:min(900px,calc(100vh - 40px)); justify-content:center; padding:36px 24px !important; color:#fff4e6; }
+    #customer-landing .landing-eyebrow { color:rgba(255,244,230,.75) !important; font-size:9px; letter-spacing:.24em; }
+    #customer-landing .landing-eyebrow::before,#customer-landing .landing-eyebrow::after { background:#f3d8bc !important; }
+    #customer-landing h2 { margin:0 0 18px !important; color:#fff2e3 !important; }
+    #customer-landing .jaab-brand { color:#fff1e3 !important; font-size:clamp(60px,12vw,112px) !important; text-shadow:0 3px 16px rgba(61,18,8,.12); }
+    #customer-landing .jaab-brand > span:nth-child(3),#customer-landing .jaab-brand > span:nth-child(7) { color:#ffe4c8 !important; }
+    #customer-landing .jaab-brand::after { background:#f5d8b8 !important; box-shadow:0 0 0 7px rgba(255,239,220,.14) !important; }
+    #customer-landing h2::after { content:none !important; display:none !important; }
+    #customer-landing .landing-copy p { display:none !important; }
+    #customer-landing .landing-actions { margin-top:24px !important; justify-content:center; }
+    #customer-landing .landing-actions button { border-radius:999px !important; padding:12px 22px !important; font-size:11px !important; }
+    #customer-landing .landing-primary { background:#fff0df !important; color:#9f351b !important; box-shadow:0 8px 25px rgba(75,20,8,.22) !important; }
+    #customer-landing .landing-secondary { color:#fff2e3 !important; border-color:rgba(255,242,227,.44) !important; background:rgba(114,34,15,.18) !important; }
+    #customer-landing .landing-features { display:none !important; }
+    #customer-landing .landing-art { display:none !important; }
+    @keyframes posterShadow { 0%,100% { transform:translate(-50%,-50%) rotate(-4deg) scale(1); } 50% { transform:translate(-50%,-49%) rotate(-2deg) scale(1.025); } }
+    @media(max-width:560px) {
+      #customer-landing .landing-card,#customer-landing .landing-copy { min-height:calc(100svh - 40px) !important; }
+      #customer-landing .landing-card::before { width:68vw; height:78svh; min-height:390px; }
+      #customer-landing .landing-card::after { left:calc(50% + 31vw); }
+    }
+    @media(prefers-reduced-motion:reduce) { #customer-landing .landing-card::before { animation:none !important; } }
+
+    /* Interior surfaces — carry the launch-poster terracotta identity into the booking workspace */
+    :root { --ink:#3d2b25; --muted:#88756d; --sage:#d84a25; --sage-dark:#a9341b; --cream:#f7f0e8; --paper:#fffaf3; --line:#ead9cd; --shadow-soft:0 16px 42px rgba(105,48,26,.12); --shadow-card:0 6px 20px rgba(105,48,26,.075); }
+    body,body.bg-slate-100 { background:#f7f0e8 !important; color:#3d2b25 !important; }
+    body > header { background:rgba(255,250,243,.97) !important; border-color:#ead9cd !important; box-shadow:0 5px 20px rgba(105,48,26,.08) !important; }
+    header .jaab-mark,header .w-9.h-9 { background:#d94a24 !important; box-shadow:0 7px 18px rgba(174,52,27,.23) !important; }
+    header h1,header h1 span { color:#49332b !important; }
+    header > div:nth-child(2) { background:#f2e7dd !important; border-color:#ead9cd !important; }
+    #mode-customer,#mode-admin,#mode-layout { color:#765a4e !important; }
+    #mode-customer.bg-white,#mode-admin.bg-white,#mode-layout.bg-white { background:#b83c20 !important; color:#fff8ef !important; box-shadow:0 5px 13px rgba(153,49,25,.2) !important; }
+    #canvas-container { background:#e9e2d8 !important; }
+    #canvas-container > .absolute.top-4.left-4,.absolute.top-4.left-4 { background:rgba(255,250,243,.95) !important; border-color:#ead9cd !important; color:#503a30 !important; }
+    #canvas-container > .absolute.bottom-4 { background:rgba(255,250,243,.95) !important; border-color:#ead9cd !important; color:#705147 !important; }
+    #quick-actions button { background:rgba(255,250,243,.96) !important; border-color:#ead9cd !important; color:#503a30 !important; }
+    #quick-actions #quick-seat-view { background:#b83c20 !important; border-color:#b83c20 !important; color:#fff8ef !important; }
+    #customer-status-bar .customer-status-inner { background:rgba(255,250,243,.97) !important; border-color:#ead9cd !important; color:#503a30 !important; }
+    #customer-status-bar .status-detail { color:#a9341b !important; }
+    #admin-sidebar { background:#fffaf3 !important; border-color:#ead9cd !important; box-shadow:-12px 0 34px rgba(105,48,26,.09) !important; }
+    #admin-sidebar .admin-sidebar-head { background:#fffaf3 !important; border-color:#ead9cd !important; }
+    #admin-sidebar .admin-sidebar-head h2 { color:#49332b !important; }
+    #admin-sidebar .admin-sidebar-head p,#admin-sidebar .admin-section-label { color:#927d72 !important; }
+    #admin-sidebar .admin-live-pill { color:#a9341b !important; background:#f9e9df !important; }
+    #admin-sidebar .admin-live-pill::before { background:#d94a24 !important; }
+    #admin-sidebar > .flex.border-b { background:#f4eae1 !important; border-color:#ead9cd !important; }
+    #admin-sidebar > .flex.border-b button { color:#765a4e !important; }
+    #admin-sidebar > .flex.border-b button.border-emerald-500 { background:#fffaf3 !important; border-color:#e9c7b5 !important; color:#a9341b !important; }
+    #admin-sidebar > .flex-1.overflow-y-auto { background:#faf5ef !important; }
+    #admin-sidebar .admin-stat { background:#fffaf3 !important; border-color:#ead9cd !important; }
+    #admin-sidebar .admin-stat b { color:#49332b !important; }
+    #admin-sidebar .admin-stat span { color:#927d72 !important; }
+    #admin-sidebar input,#admin-sidebar select,#admin-login-modal input { background:#fffdf9 !important; border-color:#e6d6ca !important; color:#49332b !important; }
+    #admin-sidebar input:focus,#admin-sidebar select:focus,#admin-login-modal input:focus { border-color:#cf7551 !important; box-shadow:0 0 0 3px rgba(217,74,36,.13) !important; }
+    #admin-sidebar .grid button { background:#fffaf3 !important; border-color:#ead9cd !important; color:#684d41 !important; }
+    #admin-sidebar .grid button:hover { background:#f9e9df !important; border-color:#e5b49d !important; color:#a9341b !important; }
+    #admin-sidebar #tab-content-reservations .admin-primary-action,#booking-modal button[type="submit"],#admin-login-modal .login-submit { background:#b83c20 !important; color:#fff8ef !important; }
+    #admin-sidebar #tab-content-reservations .admin-primary-action:hover,#booking-modal button[type="submit"]:hover,#admin-login-modal .login-submit:hover { background:#982f19 !important; }
+    #admin-sidebar #reservation-list > div { background:#fffaf3 !important; border-color:#ead9cd !important; }
+    #reservation-panel { background:#fffaf3 !important; border-color:#ead9cd !important; color:#49332b !important; }
+    #reservation-panel > div { border-color:#ead9cd !important; }
+    #booking-modal { background:rgba(63,34,24,.45) !important; }
+    #booking-modal > div { background:#fffaf3 !important; border-color:#ead9cd !important; }
+    #booking-modal h2,#booking-modal label { color:#49332b !important; }
+    #admin-login-modal { background:rgba(66,31,19,.35) !important; }
+    #admin-login-modal .admin-login-card { background:#fffaf3 !important; border-color:#ead9cd !important; }
+    #admin-login-modal .admin-login-icon { background:#f9e9df !important; color:#a9341b !important; }
+    #admin-login-modal h2 { color:#49332b !important; }
+    #admin-login-modal p,#admin-login-modal label { color:#816b60 !important; }
+    #admin-login-modal .login-cancel { background:#fffaf3 !important; color:#816b60 !important; border-color:#ead9cd !important; }
+    #inspector-panel { background:#f5ebe2 !important; border-color:#ead9cd !important; }
+    .text-emerald-600 { color:#a9341b !important; }
+    .bg-emerald-500 { background-color:#d94a24 !important; }
+    .hover\:bg-emerald-600:hover { background-color:#b83c20 !important; }
+    @media(max-width:560px) {
+      #admin-sidebar { border-color:#ead9cd !important; background:rgba(255,250,243,.98) !important; }
+      #admin-sidebar > .flex.border-b { background:#f4eae1 !important; }
+    }
+
+    /* Mobile-first finishing pass: keep the 3D map visible and controls thumb-friendly */
+    #canvas-container { min-width:0; min-height:0; }
+    @media(max-width:760px) {
+      body { height:100dvh !important; min-height:100dvh; overflow:hidden !important; }
+      body > header { min-height:58px !important; padding:7px 10px !important; gap:7px !important; }
+      header > div:first-child { min-width:0; flex:1 1 150px; }
+      header .jaab-mark { flex:0 0 36px; width:36px !important; height:36px !important; }
+      header h1 { font-size:12px !important; line-height:1.25 !important; }
+      header h1 span { display:block; margin-top:1px; font-size:8px !important; }
+      header p { font-size:8px !important; letter-spacing:.1em !important; }
+      header > div:nth-child(2) { order:3; flex:1 0 100%; width:100%; display:flex; overflow-x:auto; scrollbar-width:none; }
+      header > div:nth-child(2)::-webkit-scrollbar { display:none; }
+      #mode-customer,#mode-admin,#mode-layout { flex:1 0 auto; min-height:38px; padding:8px 10px !important; font-size:10px !important; white-space:nowrap; }
+      header > div:nth-child(3) { margin-left:auto; }
+      #camera-toolbar { max-width:100%; overflow-x:auto; }
+      #quick-actions { top:8px !important; left:8px !important; right:8px !important; max-width:none !important; display:flex; flex-wrap:nowrap !important; justify-content:flex-end; gap:5px !important; }
+      #quick-actions button { min-height:38px; padding:8px 9px !important; font-size:9px !important; white-space:nowrap; }
+      #quick-actions button:first-child { margin-right:auto; }
+      #canvas-container > .absolute.top-4.left-4,.absolute.top-4.left-4 { top:56px !important; left:8px !important; transform:scale(.78); transform-origin:top left; max-width:58vw; }
+      #canvas-container > .absolute.bottom-4 { left:8px !important; bottom:77px !important; max-width:calc(100vw - 16px); }
+      #admin-sidebar { width:100% !important; min-width:0 !important; height:68px !important; position:fixed !important; left:0 !important; right:0 !important; bottom:0 !important; top:auto !important; z-index:35 !important; border-left:0 !important; border-right:0 !important; border-bottom:0 !important; border-top:1px solid #ead9cd !important; border-radius:16px 16px 0 0 !important; box-shadow:0 -7px 24px rgba(74,43,31,.13) !important; }
+      #admin-sidebar > .admin-sidebar-head { display:none !important; }
+      #admin-sidebar > .flex.border-b { height:68px !important; min-height:68px; display:flex !important; overflow-x:auto !important; overflow-y:hidden; padding:6px 5px !important; gap:3px !important; scrollbar-width:none; }
+      #admin-sidebar > .flex.border-b::-webkit-scrollbar { display:none; }
+      #admin-sidebar > .flex.border-b button { flex:1 0 76px; min-width:76px; min-height:54px; padding:6px 4px !important; text-align:center !important; font-size:10px !important; }
+      #admin-sidebar > .flex-1.overflow-y-auto { display:none !important; }
+      #reservation-panel { top:68px !important; bottom:78px !important; left:8px !important; right:8px !important; width:auto !important; max-height:none !important; border-radius:10px 20px 10px 20px !important; }
+      #reservation-panel.customer-panel { top:auto !important; bottom:78px !important; left:8px !important; right:8px !important; width:auto !important; height:min(48dvh,420px) !important; }
+      #customer-status-bar { left:8px !important; right:8px !important; bottom:76px !important; }
+      #customer-status-bar .customer-status-inner { max-width:100% !important; padding:8px 9px !important; border-radius:8px 16px 8px 16px !important; }
+      #customer-status-bar .status-counts { gap:4px 9px !important; font-size:9px !important; }
+      #customer-status-bar .status-detail { font-size:9px !important; }
+      #booking-modal { padding:12px !important; align-items:center !important; }
+      #booking-modal > div { width:min(100%,440px) !important; max-height:calc(100dvh - 24px) !important; overflow-y:auto !important; padding:18px !important; border-radius:10px 22px 10px 22px !important; }
+      #booking-modal input,#booking-modal select,#booking-modal button { min-height:42px; }
+      #admin-login-modal { padding:14px !important; }
+      #admin-login-modal .admin-login-card { width:min(100%,390px) !important; max-height:calc(100dvh - 28px); overflow:auto; padding:21px !important; }
+      #admin-login-modal input,#admin-login-modal .login-actions button { min-height:44px; }
+      #customer-landing { overflow-y:auto !important; }
+      #customer-landing .landing-shell { min-height:100dvh !important; padding:12px !important; }
+      #customer-landing .landing-card,#customer-landing .landing-copy { min-height:calc(100dvh - 24px) !important; }
+      #customer-landing .landing-copy { padding:30px 18px !important; }
+      #customer-landing .jaab-brand { font-size:clamp(62px,18vw,100px) !important; }
+      #customer-landing h2::after { max-width:85vw; line-height:1.6; }
+      #customer-landing .landing-actions { width:min(340px,100%); flex-direction:column; align-items:stretch; }
+      #customer-landing .landing-actions button { width:100%; min-height:46px; }
+    }
+    @media(max-width:390px) {
+      header h1 { font-size:11px !important; }
+      #mode-customer,#mode-admin,#mode-layout { font-size:9px !important; padding:7px 8px !important; }
+      #quick-actions { gap:3px !important; }
+      #quick-actions button { padding:7px 6px !important; font-size:8px !important; }
+      #customer-status-bar .status-counts { gap:3px 6px !important; font-size:8px !important; }
+      #customer-status-bar .customer-status-inner { padding:7px !important; }
+    }
+    @media(max-height:620px) and (max-width:760px) {
+      #customer-landing .landing-copy { padding-top:18px !important; padding-bottom:18px !important; }
+      #customer-landing .landing-eyebrow { font-size:8px !important; }
+      #customer-landing h2::after { margin-top:8px; font-size:13px; }
+      #customer-landing .landing-actions { margin-top:14px !important; }
+      #customer-landing .landing-actions button { min-height:40px; padding:9px 16px !important; }
+    }
+
+    /* Jaab Ber wordmark animation — staggered entrance with a subtle moving sheen */
+    header h1 { animation: jaabHeaderIn .65s cubic-bezier(.2,.8,.2,1) both; }
+    header .jaab-mark { animation: jaabMarkIn .8s cubic-bezier(.2,.8,.2,1) both, jaabMarkGlow 3s ease-in-out 1s infinite; }
+    .jaab-brand { font-family:'DM Sans','Noto Sans Thai',sans-serif !important; letter-spacing:-.075em !important; }
+    .jaab-brand > span:not(.brand-gap) { animation: jaabLetterIn .75s cubic-bezier(.18,.82,.25,1) both, jaabLetterFloat 3.6s ease-in-out 1.2s infinite; }
+    .jaab-brand > span:nth-child(1){animation-delay:.06s,1.2s}.jaab-brand > span:nth-child(2){animation-delay:.13s,1.32s}.jaab-brand > span:nth-child(3){animation-delay:.20s,1.44s}.jaab-brand > span:nth-child(4){animation-delay:.27s,1.56s}.jaab-brand > span:nth-child(6){animation-delay:.38s,1.68s}.jaab-brand > span:nth-child(7){animation-delay:.45s,1.8s}.jaab-brand > span:nth-child(8){animation-delay:.52s,1.92s}
+    .jaab-brand::after { animation: jaabStar 2.1s ease-in-out infinite !important; }
+    @keyframes jaabLetterIn { 0% { opacity:0; transform:translateY(28px) rotate(8deg) scale(.76); filter:blur(6px); } 70% { opacity:1; transform:translateY(-5px) rotate(-1deg) scale(1.06); filter:blur(0); } 100% { opacity:1; transform:translateY(0) rotate(0) scale(1); } }
+    @keyframes jaabLetterFloat { 0%,100% { translate:0 0; } 50% { translate:0 -3px; } }
+    @keyframes jaabStar { 0%,100% { transform:scale(.82) rotate(0); opacity:.8; } 50% { transform:scale(1.18) rotate(18deg); opacity:1; } }
+    @keyframes jaabHeaderIn { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:translateX(0); } }
+    @keyframes jaabMarkIn { 0% { opacity:0; transform:rotate(-18deg) scale(.6); } 75% { opacity:1; transform:rotate(5deg) scale(1.08); } 100% { opacity:1; transform:rotate(0) scale(1); } }
+    @keyframes jaabMarkGlow { 0%,100% { box-shadow:0 7px 18px rgba(174,52,27,.23); } 50% { box-shadow:0 7px 23px rgba(217,74,36,.48); } }
+    @media(prefers-reduced-motion:reduce) { .jaab-brand > span:not(.brand-gap),header h1,header .jaab-mark { animation:none !important; } }
+  </style>
+</head>
+<body class="h-screen overflow-hidden flex flex-col bg-slate-100">
+
+  <!-- Public customer landing page: ideal entry point for a Cloudflare Pages QR link -->
+  <section id="customer-landing" aria-label="หน้าแรกสำหรับจองโต๊ะ">
+    <div class="landing-shell">
+      <div class="landing-card">
+        <div class="landing-copy">
+          <div class="landing-eyebrow">SEOUL MOOD · TABLE RESERVATION</div>
+          <h2><span class="jaab-brand" aria-label="Jaab Ber"><span>J</span><span>a</span><span>a</span><span>b</span><span class="brand-gap"> </span><span>B</span><span>e</span><span>r</span></span><br></h2>
+          
+          <div class="landing-actions">
+            <button class="landing-primary" onclick="enterBookingExperience()">เริ่มเลือกโต๊ะ <span aria-hidden="true">→</span></button>
+            <button class="landing-secondary" onclick="enterAdminExperience()">สำหรับผู้ดูแลร้าน</button>
+          </div>
+          <div class="landing-features">
+            <div class="landing-feature"><strong>01 · ดูผัง 3D</strong>เห็นตำแหน่งโต๊ะและบรรยากาศร้านก่อนเลือก</div>
+            <div class="landing-feature"><strong>02 · จองได้เอง</strong>เลือกโต๊ะ กรอกวันเวลา แล้วกดยืนยัน</div>
+            <div class="landing-feature"><strong>03 · อัปเดตข้อมูล</strong>รายการจองส่งต่อไปยัง Google Sheets ของร้าน</div>
+          </div>
+        </div>
+        <div class="landing-art" aria-hidden="true"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Admin-only login gate -->
+  <div id="admin-login-modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="admin-login-title">
+    <div class="admin-login-card">
+      <div class="admin-login-icon" aria-hidden="true">🔐</div>
+      <h2 id="admin-login-title">เข้าสู่ระบบผู้ดูแลร้าน</h2>
+      <p>ส่วนนี้สำหรับผู้ดูแลเท่านั้น ลูกค้าสามารถดูโต๊ะว่างและทำรายการจองได้โดยไม่ต้องเข้าสู่ระบบ</p>
+      <form onsubmit="submitAdminLogin(event)">
+        <label for="admin-username">ชื่อผู้ใช้</label>
+        <input id="admin-username" type="text" autocomplete="username" required placeholder="admin">
+        <label for="admin-password">รหัสผ่าน</label>
+        <input id="admin-password" type="password" autocomplete="current-password" required placeholder="กรอกรหัสผ่านผู้ดูแล">
+        <div id="admin-login-error" role="alert"></div>
+        <div class="login-actions">
+          <button type="button" class="login-cancel" onclick="closeAdminLogin()">ยกเลิก</button>
+          <button type="submit" class="login-submit">เข้าสู่ระบบ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Header / Mode Switcher -->
+  <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-3 flex justify-between items-center z-20 shadow-sm">
+    <div class="flex items-center space-x-3">
+      <div class="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm jaab-mark">J</div>
+      <div>
+        <h1 class="font-bold text-slate-800 text-base leading-tight">Jaab Ber <span>· จัดผังร้าน & จองโต๊ะ</span></h1>
+        <p class="text-xs text-slate-500">SEOUL CAFÉ · TABLE & SPACE</p>
+      </div>
+    </div>
+
+    <!-- Mode Tabs -->
+    <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+      <button id="mode-customer" onclick="setMode('customer')" class="px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-white text-emerald-600 shadow-sm flex items-center gap-2">
+        <span>👥</span> โหมดลูกค้าเลือกจองโต๊ะ
+      </button>
+      <button id="mode-admin" onclick="setMode('admin')" class="px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-600 hover:text-slate-900 flex items-center gap-2">
+        <span>🧾</span> โหมดแอดมิน · จัดการจอง
+      </button>
+      <button id="mode-layout" onclick="setMode('layout')" class="px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-600 hover:text-slate-900 flex items-center gap-2">
+        <span>🛠️</span> โหมดจัดผังร้าน
+      </button>
+    </div>
+
+    <!-- Camera Presets (moved into Settings on the side menu) -->
+    <div id="camera-toolbar" class="flex items-center space-x-2">
+      <span class="text-xs font-medium text-slate-500">มุมมอง:</span>
+      <button onclick="setCameraView('iso')" class="px-3 py-1.5 text-xs font-medium bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-slate-700 shadow-2xs">3D เฉียง</button>
+      <button onclick="setCameraView('top')" class="px-3 py-1.5 text-xs font-medium bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-slate-700 shadow-2xs">มุมสูง Top-Down</button>
+      <button onclick="setCameraView('entrance')" class="px-3 py-1.5 text-xs font-medium bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-slate-700 shadow-2xs">ทางเข้า 1st Person</button>
+      <button id="theme-toggle" onclick="toggleDayNight()" class="px-3 py-1.5 text-xs font-semibold border rounded-lg shadow-2xs">☀️ กลางวัน</button>
+      <button onclick="saveLayout()" class="px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg shadow-2xs">บันทึกผัง</button>
+      <button onclick="loadLayout()" class="px-3 py-1.5 text-xs font-semibold bg-white text-slate-700 border border-slate-200 rounded-lg shadow-2xs">โหลดผัง</button>
+      <button onclick="toggleReservationsPanel()" class="px-3 py-1.5 text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 rounded-lg shadow-2xs">📋 รายชื่อจอง</button>
+      <span id="save-status" class="hidden sm:inline text-[10px] text-slate-400 whitespace-nowrap">ยังไม่บันทึก</span>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="flex-1 flex relative overflow-hidden">
+
+    <!-- 3D Canvas Area -->
+    <div id="canvas-container" class="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing">
+      <div class="absolute bottom-4 left-4 z-10 bg-white/90 backdrop-blur-md px-3 py-2 rounded-xl shadow-sm border border-slate-200 text-xs text-slate-600 pointer-events-none">
+        โหมดจัดผังร้าน: กดค้างแล้วลากวัตถุเพื่อย้ายตำแหน่งใน 3D
+      </div>
+      
+
+      <div id="quick-actions" aria-label="การควบคุมด่วน">
+        <button onclick="showCustomerLanding()">⌂ หน้าแรก</button>
+        <button id="quick-seat-view" onclick="viewSelectedTableSeat()" title="เลือกโต๊ะก่อน แล้วกดเพื่อดูมุมนั่งจริง">🎥 มุมนั่งจริง</button>
+        <button id="quick-night" onclick="toggleDayNight()">☀️ กลางวัน</button>
+        <button id="quick-animation" onclick="toggleAnimationPlayback()">Ⅱ หยุดแอนิเมชัน</button>
+        <button onclick="toggleReservationsPanel()">📋 รายชื่อจอง</button>
+      </div>
+      <div id="customer-status-bar" aria-live="polite">
+        <div class="customer-status-inner">
+          <div class="status-counts"><span>🟢 ว่าง <b id="customer-available-count">0</b></span><span>🔴 จองแล้ว <b id="customer-booked-count">0</b></span><span>🟡 กำลังมา <b id="customer-partial-count">0</b></span><span>✅ เช็คอิน <b id="customer-checked-count">0</b></span></div>
+          <div id="customer-status-detail" class="status-detail">กดที่โต๊ะเพื่อดูสถานะและจองโต๊ะ</div>
+          <div class="flex justify-center gap-2 mt-2 pointer-events-auto">
+            <button onclick="viewSelectedTableSeat()" class="px-3 py-1.5 rounded-lg bg-sage text-xs font-semibold text-white" style="background:#789586">🎥 ดูมุมนั่งจริง</button>
+            <button onclick="setCameraView('iso')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-600">กลับมุมผัง</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Legend Bar -->
+      <div class="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-md border border-slate-200/80 flex items-center space-x-5 text-xs font-medium">
+        <div class="flex items-center space-x-2">
+          <span id="legend-avail-dot" class="w-3.5 h-3.5 rounded-full bg-emerald-400 border border-emerald-600 inline-block"></span>
+          <span class="text-slate-700">โต๊ะว่าง</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span id="legend-reserved-dot" class="w-3.5 h-3.5 rounded-full bg-rose-400 border border-rose-600 inline-block"></span>
+          <span class="text-slate-700">จองแล้ว</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span id="legend-vip-dot" class="w-3.5 h-3.5 rounded-full bg-purple-400 border border-purple-600 inline-block"></span>
+          <span class="text-slate-700">โต๊ะ VIP</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span id="legend-select-dot" class="w-3.5 h-3.5 rounded-full bg-amber-400 border border-amber-600 inline-block"></span>
+          <span class="text-slate-700">กำลังเลือก</span>
+        </div>
+      </div>
+
+      <!-- Floating Labels Overlay Canvas Container -->
+      <div id="labels-container" class="absolute inset-0 pointer-events-none z-10 overflow-hidden"></div>
+    </div>
+
+    <!-- ADMIN SIDEBAR CONTROLS -->
+    <div id="admin-sidebar" class="w-80 bg-white border-l border-slate-200 flex flex-col z-10 shadow-lg transition-all duration-300">
+
+      <div class="admin-sidebar-head">
+        <div><h2>ศูนย์ควบคุมร้าน</h2><p>จัดการผัง โต๊ะ และรายการจอง</p></div>
+        <div class="flex items-center gap-2"><span class="admin-live-pill">พร้อมใช้งาน</span><button onclick="adminLogout()" class="text-[10px] text-slate-500 hover:text-rose-600" title="ออกจากระบบ">ออก</button></div>
+      </div>
+      
+      <!-- Tab Controls -->
+      <div class="flex border-b border-slate-200 bg-slate-50 text-xs font-semibold">
+        <button onclick="openAdminTab('objects')" id="tab-btn-objects" class="flex-1 py-3 border-b-2 border-emerald-500 text-emerald-600 text-center bg-white">📦 เพิ่มวัตถุ</button>
+        <button onclick="openAdminTab('boundary')" id="tab-btn-boundary" class="flex-1 py-3 text-slate-500 hover:text-slate-800 text-center">📐 ผังร้าน 10 จุด</button>
+        <button onclick="openAdminTab('colors')" id="tab-btn-colors" class="flex-1 py-3 text-slate-500 hover:text-slate-800 text-center">🎨 ปรับสี</button>
+        <button onclick="openAdminTab('reservations')" id="tab-btn-reservations" class="flex-1 py-3 text-slate-500 hover:text-slate-800 text-center">📋 รายชื่อจอง</button>
+        <button onclick="openAdminTab('settings')" id="tab-btn-settings" class="flex-1 py-3 text-slate-500 hover:text-slate-800 text-center">⚙️ ตั้งค่า</button>
+        <button onclick="openAdminTab('sheets')" id="tab-btn-sheets" class="flex-1 py-3 text-slate-500 hover:text-slate-800 text-center">🔗 เชื่อมต่อ</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-5">
+        
+        <!-- Tab 1: Objects & Inspector -->
+        <div id="tab-content-objects" class="space-y-4">
+          <div>
+            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-2">คลิกเพื่อเพิ่มวัตถุลงผัง</label>
+            <div class="grid grid-cols-2 gap-2 text-xs font-medium">
+              <button onclick="addObject('table-rect')" class="p-2.5 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🪑 โต๊ะเหลี่ยม
+              </button>
+              <button onclick="addObject('table-round')" class="p-2.5 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                ⭕ โต๊ะกลม
+              </button>
+              <button onclick="addObject('stage')" class="p-2.5 bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🎤 เวทีแสดง
+              </button>
+              <button onclick="addObject('bar')" class="p-2.5 bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🍸 บาร์เครื่องดื่ม
+              </button>
+              <button onclick="addObject('tree')" class="p-2.5 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🪴 ต้นไม้ตกแต่ง
+              </button>
+              <button onclick="addObject('tree-large')" class="p-2.5 bg-slate-50 hover:bg-green-50 border border-slate-200 hover:border-green-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🌳 ต้นไม้ใหญ่
+              </button>
+              <button onclick="addObject('entrance')" class="p-2.5 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🚪 ทางเข้า-ออก
+              </button>
+              <button onclick="addObject('chair')" class="p-2.5 bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🪑 เก้าอี้
+              </button>
+              <button onclick="addObject('chair-round')" class="p-2.5 bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🪑 เก้าอี้กลม
+              </button>
+              <button onclick="addObject('road')" class="p-2.5 bg-slate-50 hover:bg-slate-200 border border-slate-200 hover:border-slate-400 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🛣️ เพิ่มถนน
+              </button>
+              <button onclick="addObject('partition')" class="p-2.5 bg-slate-50 hover:bg-slate-200 border border-slate-200 hover:border-slate-400 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🧱 ฉากกั้น
+              </button>
+              <button onclick="addObject('room-box')" class="p-2.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🏠 ห้องกั้น 4 เหลี่ยม
+              </button>
+              <button onclick="addObject('bookshelf')" class="p-2.5 bg-slate-50 hover:bg-stone-50 border border-slate-200 hover:border-stone-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                📚 ชั้นหนังสือบิวท์อิน
+              </button>
+              <button onclick="addObject('floor-lamp')" class="p-2.5 bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🛋️ โคมไฟตั้งพื้น
+              </button>
+              <button onclick="addObject('coffee-table')" class="p-2.5 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                ▫️ โต๊ะกลางเตี้ย
+              </button>
+              <button onclick="addObject('pendant-light')" class="p-2.5 bg-slate-50 hover:bg-yellow-50 border border-slate-200 hover:border-yellow-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                💡 โคมไฟแขวน
+              </button>
+              <button onclick="addObject('sofa')" class="p-2.5 bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🛋️ โซฟา VIP
+              </button>
+            </div>
+          </div>
+
+          <hr class="border-slate-100">
+
+          <!-- Object Inspector -->
+          <div id="inspector-panel" class="hidden space-y-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+              <span class="text-xs font-bold text-slate-700">คุณสมบัติวัตถุที่เลือก</span>
+              <div class="flex items-center gap-2">
+                <button onclick="duplicateSelectedObject()" class="text-xs text-emerald-700 hover:text-emerald-900 font-semibold">⧉ คัดลอก</button>
+                <button onclick="deleteSelectedObject()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold">🗑️ ลบวัตถุ</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-2xs font-semibold text-slate-500 block mb-1">ชื่อ / เลขวัตถุ</label>
+              <input type="text" id="obj-name-input" onchange="updateSelectedObjectProps()" onblur="updateSelectedObjectProps()" class="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-2xs font-semibold text-slate-500 block mb-1">ตำแหน่ง X</label>
+                <input type="number" id="obj-x-input" step="0.1" onchange="updateSelectedObjectPosition()" class="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none">
+              </div>
+              <div>
+                <label class="text-2xs font-semibold text-slate-500 block mb-1">ตำแหน่ง Z</label>
+                <input type="number" id="obj-z-input" step="0.1" onchange="updateSelectedObjectPosition()" class="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-2xs font-semibold text-slate-500 block mb-1">จำนวนที่นั่ง</label>
+                <input type="number" id="obj-seats-input" min="1" max="16" onchange="updateSelectedObjectProps()" class="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none">
+              </div>
+              <div>
+                <label class="text-2xs font-semibold text-slate-500 block mb-1">สถานะโต๊ะ VIP</label>
+                <select id="obj-vip-input" onchange="updateSelectedObjectProps()" class="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none">
+                  <option value="false">ปกติ</option>
+                  <option value="true">VIP โซนพิเศษ / โซฟา</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Resizing Controls -->
+            <div class="space-y-2 pt-2 border-t border-slate-200">
+              <span class="text-2xs font-bold text-slate-600 block">ปรับขนาด & องศา (Resizing)</span>
+              <div>
+                <div class="flex justify-between text-2xs text-slate-500"><span>ความสูง (Height Y)</span><span id="val-scale-y">1.0</span></div>
+                <input type="range" id="scale-y" min="0.2" max="4" step="0.1" value="1" oninput="updateSelectedObjectScale()" class="w-full accent-emerald-500 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+              </div>
+              <div>
+                <div class="flex justify-between text-2xs text-slate-500"><span>ความกว้าง (Width X)</span><span id="val-scale-x">1.0</span></div>
+                <input type="range" id="scale-x" min="0.5" max="3" step="0.1" value="1" oninput="updateSelectedObjectScale()" class="w-full accent-emerald-500 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+              </div>
+              <div>
+                <div class="flex justify-between text-2xs text-slate-500"><span>ความยาว (Depth Z)</span><span id="val-scale-z">1.0</span></div>
+                <input type="range" id="scale-z" min="0.5" max="3" step="0.1" value="1" oninput="updateSelectedObjectScale()" class="w-full accent-emerald-500 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+              </div>
+              <div>
+                <div class="flex justify-between text-2xs text-slate-500"><span>หมุนองศา (Rotate Y)</span><span id="val-rot-y">0°</span></div>
+                <input type="range" id="rot-y" min="0" max="359" step="1" value="0" oninput="updateSelectedObjectScale()" class="w-full accent-emerald-500 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: 10-Point Boundary Editor -->
+        <div id="tab-content-boundary" class="hidden space-y-4">
+          <p class="text-xs text-slate-500">ลากปรับจุด 10 มุมในกรอบเพื่อกำหนดรูปทรงห้องสี่เหลี่ยมคางหมูหรือทรงอิสระในแบบ 3D</p>
+          <div class="w-full aspect-square bg-slate-900 rounded-2xl relative border border-slate-300 overflow-hidden shadow-inner flex items-center justify-center">
+            <canvas id="boundary-canvas" width="260" height="260" class="cursor-crosshair"></canvas>
+          </div>
+          <button onclick="resetBoundaryPoints()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 transition-colors">
+            🔄 รีเซ็ตจุดผังร้าน 10 มุม
+          </button>
+        </div>
+
+        <!-- Tab 4: Reservation Management -->
+        <div id="tab-content-reservations" class="hidden space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-700">ภาพรวมการจอง</h3>
+              <p class="text-[10px] text-slate-500">จัดการ เพิ่ม แก้ไข ลบ และเช็คอินลูกค้า</p>
+            </div>
+            <button onclick="renderReservationList()" class="px-2.5 py-1.5 text-[10px] rounded-lg border border-slate-200 bg-white text-slate-600">↻ รีเฟรช</button>
+          </div>
+          <div class="admin-stat-grid" aria-label="สรุปการจอง">
+            <div class="admin-stat"><b id="admin-stat-active">0</b><span>กำลังใช้งาน</span></div>
+            <div class="admin-stat"><b id="admin-stat-waiting">0</b><span>รอเช็คอิน</span></div>
+            <div class="admin-stat"><b id="admin-stat-checked">0</b><span>เช็คอินแล้ว</span></div>
+          </div>
+          <div class="admin-section-label">การทำรายการด่วน</div>
+          <div class="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 space-y-2">
+            <div class="flex gap-2">
+              <select id="admin-booking-table" class="flex-1 px-2 py-2 text-xs border border-emerald-200 rounded-lg bg-white"></select>
+              <button onclick="openAdminBookingForm()" class="admin-primary-action px-3 py-2 text-xs rounded-lg text-white font-semibold">＋ เพิ่มการจอง</button>
+            </div>
+            <p class="text-[10px] text-emerald-700">เลือกโต๊ะว่างเพื่อเพิ่มรายการจองแทนลูกค้า</p>
+          </div>
+          <div class="admin-section-label">กติกาการถือโต๊ะ</div>
+          <div class="p-3 rounded-xl border border-amber-200 bg-amber-50/60 space-y-2">
+            <label class="text-[11px] font-semibold text-slate-600 block">ปล่อยโต๊ะเมื่อมาสายเกิน (นาที)</label>
+            <div class="flex gap-2">
+              <input id="late-release-minutes" type="number" min="1" max="180" value="15" onchange="updateLateReleaseMinutes()" class="flex-1 px-2 py-1.5 text-xs border border-amber-200 rounded-lg bg-white">
+              <button onclick="autoReleaseLateReservations(true)" class="px-2 py-1 text-[10px] rounded-lg bg-amber-500 text-white">ตรวจสอบตอนนี้</button>
+            </div>
+          </div>
+          <div id="reservation-list" class="space-y-2"></div>
+        </div>
+
+        <!-- Tab 4: Settings -->
+        <div id="tab-content-settings" class="hidden space-y-4">
+          <h3 class="text-sm font-bold text-slate-700">⚙️ ตั้งค่าการแสดงผล</h3>
+          <div class="p-3 rounded-xl border border-violet-200 bg-violet-50/60 space-y-2">
+            <div class="flex items-center justify-between"><label class="text-xs font-semibold text-violet-800">ระยะเวลาแอนิเมชัน</label><span class="text-[10px] text-violet-600">วินาที</span></div>
+            <div class="flex gap-2"><input id="animation-duration" type="number" min="1" max="3600" step="1" value="30" class="flex-1 px-2 py-1.5 text-xs border border-violet-200 rounded-lg bg-white"><button onclick="toggleAnimationPlayback()" class="px-3 py-1.5 text-xs rounded-lg bg-violet-600 text-white font-semibold">เล่นตามเวลา</button></div>
+            <label class="flex items-center gap-2 text-[11px] text-violet-800"><input id="animation-loop" type="checkbox" onchange="appState.animationLoop = this.checked; updateAnimationControls();" class="accent-violet-600"> เล่นวนซ้ำอัตโนมัติ</label>
+            <div id="animation-status" class="text-[10px] text-violet-600">ตั้งไว้ 30 วินาที · เล่นครั้งเดียว</div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="toggleAnimationPlayback()" class="p-2 rounded-xl border border-violet-200 bg-violet-50 text-violet-700 text-xs">▶/Ⅱ แอนิเมชัน</button>
+            <button onclick="setCameraView('iso')" class="p-2 rounded-xl border border-slate-200 bg-white text-xs">3D เฉียง</button>
+            <button onclick="setCameraView('top')" class="p-2 rounded-xl border border-slate-200 bg-white text-xs">มุมสูง</button>
+            <button onclick="setCameraView('entrance')" class="p-2 rounded-xl border border-slate-200 bg-white text-xs">ทางเข้า</button>
+            <button onclick="toggleDayNight()" class="p-2 rounded-xl border border-slate-200 bg-white text-xs">☀️/🌙 กลางวัน</button>
+          </div>
+          <div class="flex gap-2"><button onclick="saveLayout()" class="flex-1 p-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs border border-emerald-200">บันทึกผัง</button><button onclick="loadLayout()" class="flex-1 p-2 rounded-xl bg-white text-xs border border-slate-200">โหลดผัง</button></div>
+        </div>
+        <!-- Tab 5: Sheets connection -->
+        <div id="tab-content-sheets" class="hidden space-y-4">
+          <h3 class="text-sm font-bold text-slate-700">🔗 เชื่อมต่อ Google Sheets</h3>
+          <p class="text-[10px] text-slate-500">ใส่ URL ของ Google Apps Script Web App เพื่อซิงก์ข้อมูลการจอง</p>
+          <input id="sheet-endpoint-sidebar" type="url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-xl bg-white">
+          <div class="flex gap-2"><button onclick="connectSheetFromSidebar()" class="flex-1 px-3 py-2 rounded-xl bg-sky-600 text-white text-xs">เชื่อมต่อ/ซิงก์</button><button onclick="syncReservationsToSheet(true)" class="px-3 py-2 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 text-xs">ซิงก์</button></div>
+          <div id="sheet-sync-status-sidebar" class="text-[10px] text-slate-400">ยังไม่เชื่อมต่อ</div>
+        </div>
+
+        <!-- Tab 3: Custom Colors -->
+        <div id="tab-content-colors" class="hidden space-y-4">
+          <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block">กำหนดโทนสีของระบบ</label>
+          <div class="space-y-3 text-xs">
+            <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+              <span class="font-medium text-slate-700">โต๊ะว่าง (Available)</span>
+              <input type="color" id="color-avail" value="#4ade80" onchange="updateCustomColors()" class="w-8 h-8 rounded-lg cursor-pointer border-0">
+            </div>
+            <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+              <span class="font-medium text-slate-700">โต๊ะจองแล้ว (Reserved)</span>
+              <input type="color" id="color-reserved" value="#f87171" onchange="updateCustomColors()" class="w-8 h-8 rounded-lg cursor-pointer border-0">
+            </div>
+            <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+              <span class="font-medium text-slate-700">โต๊ะ VIP (VIP Table)</span>
+              <input type="color" id="color-vip" value="#c084fc" onchange="updateCustomColors()" class="w-8 h-8 rounded-lg cursor-pointer border-0">
+            </div>
+            <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+              <span class="font-medium text-slate-700">โต๊ะกำลังเลือก (Selected)</span>
+              <input type="color" id="color-select" value="#facc15" onchange="updateCustomColors()" class="w-8 h-8 rounded-lg cursor-pointer border-0">
+            </div>
+            <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+              <span class="font-medium text-slate-700">สีพื้นร้าน 3D (Floor)</span>
+              <input type="color" id="color-floor" value="#e2e8f0" onchange="updateCustomColors()" class="w-8 h-8 rounded-lg cursor-pointer border-0">
+            </div>
+            <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+              <span class="font-medium text-slate-700">สีบรรยากาศฉาก (Background)</span>
+              <input type="color" id="color-bg" value="#f5f3ef" onchange="updateCustomColors()" class="w-8 h-8 rounded-lg cursor-pointer border-0">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SEPARATE RESERVATION PANEL -->
+  <aside id="reservation-panel" class="customer-panel hidden fixed right-4 top-20 bottom-4 z-40 w-[380px] max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-rose-50/70">
+      <div><h2 class="font-bold text-sm text-slate-800">📋 รายชื่อจองโต๊ะ</h2><p class="text-[10px] text-slate-500">เพิ่ม แก้ไข หรือลบรายการจองที่ยังใช้งานได้</p></div>
+      <button onclick="toggleReservationsPanel()" class="w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-500">✕</button>
+    </div>
+    <div class="p-3 overflow-y-auto h-[calc(100%-58px)] custom-scrollbar space-y-3">
+      <div class="p-3 rounded-xl border border-amber-200 bg-amber-50/70 space-y-2">
+        <label class="text-[11px] font-semibold text-slate-600 block">ปล่อยโต๊ะเมื่อมาสายเกิน (นาที)</label>
+        <div class="flex gap-2"><input id="late-release-minutes-panel" type="number" min="1" max="180" value="15" onchange="updateLateReleaseMinutesFromPanel()" class="flex-1 px-2 py-1.5 text-xs border border-amber-200 rounded-lg bg-white"><button onclick="autoReleaseLateReservations(true)" class="px-2 py-1 text-[10px] rounded-lg bg-amber-500 text-white">ตรวจสอบ</button></div>
+      </div>
+      <div class="p-3 rounded-xl border border-sky-200 bg-sky-50/60 space-y-2">
+        <label class="text-[11px] font-semibold text-slate-600 block">Google Sheets Web App URL</label>
+        <input id="sheet-endpoint" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="" class="w-full px-2 py-1.5 text-[10px] border border-sky-200 rounded-lg bg-white">
+        <div class="flex items-center justify-between gap-2"><span id="sheet-sync-status" class="text-[10px] text-slate-400">ยังไม่เชื่อมต่อ</span><button onclick="connectSheet()" class="px-2 py-1 text-[10px] rounded-lg bg-sky-600 text-white">เชื่อมต่อ/ซิงก์</button></div>
+      </div>
+      <div id="reservation-list-live" class="space-y-2"></div>
+    </div>
+  </aside>
+
+  <!-- BOOKING MODAL (FOR CUSTOMER) -->
+  <div id="booking-modal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div class="bg-emerald-500 p-5 text-white flex justify-between items-start">
+        <div>
+          <span class="text-xs bg-emerald-600/60 px-2.5 py-1 rounded-full font-medium inline-block mb-1">การยืนยันจองโต๊ะ</span>
+          <h3 id="modal-table-title" class="text-2xl font-bold">โต๊ะ T-01</h3>
+        </div>
+        <button onclick="closeBookingModal()" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-bold">✕</button>
+      </div>
+      <form onsubmit="confirmBooking(event)" class="p-6 space-y-4 text-xs">
+        <div>
+          <label class="block text-slate-600 font-semibold mb-1">ชื่อผู้จอง</label>
+          <input id="booking-name" type="text" required placeholder="คุณสมชาย ใจดี" class="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-600 font-semibold mb-1">เบอร์โทรศัพท์</label>
+            <input id="booking-phone" type="tel" required placeholder="081-234-5678" class="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-slate-600 font-semibold mb-1">จำนวนผู้รับบริการ</label>
+            <select id="modal-guest-count" class="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="2">2 ท่าน</option>
+              <option value="4">4 ท่าน</option>
+              <option value="6">6 ท่าน</option>
+              <option value="8">8 ท่าน</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-600 font-semibold mb-1">วันที่จอง</label>
+            <input id="booking-date" type="date" required value="2026-11-03" class="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-slate-600 font-semibold mb-1">เวลาจอง (24 ชั่วโมง)</label>
+            <input id="booking-time" type="text" required inputmode="numeric" autocomplete="off" maxlength="5" pattern="(?:[01]\d|2[0-3]):[0-5]\d" placeholder="เช่น 22:00" value="22:00" title="กรอกเวลาในรูปแบบ 24 ชั่วโมง เช่น 09:30 หรือ 22:00" class="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+            <p class="mt-1 text-[10px] text-slate-400">รูปแบบ 24 ชั่วโมง: 00:00–23:59</p>
+          </div>
+        </div>
+        <div class="pt-2">
+          <button id="booking-submit" type="submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl shadow-md transition-all">
+            ยืนยันการจองโต๊ะนี้
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // --- Application State ---
+    let appState = {
+      mode: 'customer', // 'customer' | 'admin' | 'layout'
+      adminAuthenticated: false,
+      editingReservationId: null,
+      customerMessage: 'กดที่โต๊ะเพื่อดูสถานะและจองโต๊ะ',
+      animationPlaying: true,
+      animationDuration: 30,
+      animationLoop: false,
+      animationTimer: null,
+      colors: {
+        avail: '#4ade80',
+        reserved: '#f87171',
+        vip: '#c084fc',
+        select: '#facc15',
+        floor: '#e2e8f0',
+        bg: '#f5f3ef'
+      },
+      boundaryPoints: [
+        { x: -10, z: -10 },
+        { x: 0, z: -10 },
+        { x: 10, z: -10 },
+        { x: 12, z: 2 },
+        { x: 10, z: 6 },
+        { x: 8, z: 10 },
+        { x: 0, z: 11 },
+        { x: -8, z: 10 },
+        { x: -10, z: 6 },
+        { x: -12, z: 2 }
+      ],
+      objects: [
+        { id: 'T-01', type: 'table-rect', x: -4, z: -3, scaleX: 1, scaleZ: 1, rotY: 0, seats: 4, reserved: false, isVip: false },
+        { id: 'T-02', type: 'table-rect', x: 4, z: -3, scaleX: 1, scaleZ: 1, rotY: 0, seats: 4, reserved: true, isVip: false },
+        { id: 'VIP-01', type: 'sofa', x: 0, z: 3, scaleX: 1.2, scaleZ: 1.2, rotY: 0, seats: 6, reserved: false, isVip: true },
+        { id: 'BAR', type: 'bar', x: -7, z: -7, scaleX: 1.5, scaleZ: 1, rotY: 0, seats: 0 },
+        { id: 'STAGE', type: 'stage', x: 0, z: -8, scaleX: 1.8, scaleZ: 1, rotY: 0, seats: 0 },
+        { id: 'ROAD-N', type: 'road', x: 0, z: 18, scaleX: 1, scaleY: 1, scaleZ: 1, rotY: 0, seats: 0 },
+        { id: 'ROAD-S', type: 'road', x: 0, z: -18, scaleX: 1, scaleY: 1, scaleZ: 1, rotY: 0, seats: 0 },
+        { id: 'ROAD-E', type: 'road', x: 18, z: 0, scaleX: 1, scaleY: 1, scaleZ: 1, rotY: 90, seats: 0 },
+        { id: 'ROAD-W', type: 'road', x: -18, z: 0, scaleX: 1, scaleY: 1, scaleZ: 1, rotY: 90, seats: 0 }
+      ],
+      selectedObjId: null,
+      reservations: [],
+      lateReleaseMinutes: 15,
+      sheetEndpoint: localStorage.getItem('atelier-sheet-endpoint') || '',
+      layoutUpdatedAt: localStorage.getItem('atelier-layout-updated-at') || ''
+    };
+
+    // Three.js Engine Variables
+    let scene, camera, renderer, controls;
+    let floorMesh, floorWallsMesh, surroundingGroundMesh, floorPulseMesh;
+    let floorPulseMaterial;
+    let roadMeshes = [];
+    let ambientLight, dirLight, roomLight;
+    let isNight = false;
+    let introStart = 0;
+    let introComplete = false;
+    let object3DMap = new Map();
+    let raycaster = new THREE.Raycaster();
+    let mouse = new THREE.Vector2();
+    let dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    let dragPoint = new THREE.Vector3();
+    let dragOffset = new THREE.Vector3();
+    let draggedObjId = null;
+    let cameraTour = null;
+
+    // Init Application
+    window.addEventListener('DOMContentLoaded', () => {
+      introStart = performance.now();
+      initThree();
+      init2DBoundaryCanvas();
+      renderSceneObjects();
+      updateLabels();
+      setMode('customer');
+      updateAnimationControls();
+      scheduleAnimationStop();
+      animate();
+      loadSavedReservations();
+      loadLayoutFromSheet(true);
+      setInterval(() => autoReleaseLateReservations(false), 30000);
+      setInterval(() => syncReservationsToSheet(false), 15000);
+      setInterval(() => loadLayoutFromSheet(false), 30000);
+    });
+
+    // --- 3D Scene Initialization ---
+    function initThree() {
+      const container = document.getElementById('canvas-container');
+      
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(appState.colors.bg);
+
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.set(0, 25, 27);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.8));
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      controls.minDistance = 8;
+      controls.maxDistance = 55;
+      controls.target.set(0, 0, 0);
+
+      // Lights
+      ambientLight = new THREE.AmbientLight(0xfff7e8, 0.78);
+      scene.add(ambientLight);
+
+      dirLight = new THREE.DirectionalLight(0xfff3dc, 0.72);
+      dirLight.position.set(15, 25, 15);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 1024;
+      dirLight.shadow.mapSize.height = 1024;
+      scene.add(dirLight);
+      roomLight = new THREE.PointLight(0xffd9a0, 0.25, 38);
+      roomLight.position.set(0, 7, 1);
+      roomLight.castShadow = true;
+      scene.add(roomLight);
+
+      rebuildFloorGeometry();
+
+      // Click / Raycast Event
+      renderer.domElement.addEventListener('pointerdown', onCanvasPointerDown);
+      renderer.domElement.addEventListener('pointermove', onCanvasPointerMove);
+      renderer.domElement.addEventListener('pointerup', onCanvasPointerUp);
+      renderer.domElement.addEventListener('pointercancel', onCanvasPointerUp);
+      window.addEventListener('resize', onWindowResize);
+    }
+
+    // Rebuild the restaurant floor, surrounding ground, and roads.
+    function rebuildFloorGeometry() {
+      if (floorMesh) scene.remove(floorMesh);
+      if (floorWallsMesh) scene.remove(floorWallsMesh);
+      if (surroundingGroundMesh) scene.remove(surroundingGroundMesh);
+      roadMeshes.forEach(mesh => scene.remove(mesh));
+      roadMeshes = [];
+
+      const shape = new THREE.Shape();
+      appState.boundaryPoints.forEach((pt, idx) => {
+        if (idx === 0) shape.moveTo(pt.x, pt.z);
+        else shape.lineTo(pt.x, pt.z);
+      });
+      shape.closePath();
+
+      // Surrounding ground outside the editable restaurant boundary.
+      const groundGeom = new THREE.PlaneGeometry(50, 50);
+      const groundMat = new THREE.MeshStandardMaterial({ color: 0xd7dee5, roughness: 1 });
+      surroundingGroundMesh = new THREE.Mesh(groundGeom, groundMat);
+      surroundingGroundMesh.rotation.x = -Math.PI / 2;
+      surroundingGroundMesh.position.y = -0.12;
+      surroundingGroundMesh.receiveShadow = true;
+      scene.add(surroundingGroundMesh);
+
+      // Roads are regular editable objects (ROAD-N/S/E/W) rendered below.
+
+      // Floor inside the editable 10-point boundary.
+      const floorGeom = new THREE.ShapeGeometry(shape);
+      const floorMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(appState.colors.floor), roughness: 0.8
+      });
+      floorMesh = new THREE.Mesh(floorGeom, floorMat);
+      floorMesh.rotation.x = -Math.PI / 2;
+      floorMesh.receiveShadow = true;
+      scene.add(floorMesh);
+      if (floorPulseMesh) scene.remove(floorPulseMesh);
+      floorPulseMaterial = new THREE.MeshBasicMaterial({ color: isNight ? 0xf4c98a : 0xa8c7b2, transparent: true, opacity: 0.10, side: THREE.DoubleSide });
+      floorPulseMesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), floorPulseMaterial);
+      floorPulseMesh.rotation.x = -Math.PI / 2;
+      floorPulseMesh.position.y = 0.045;
+      scene.add(floorPulseMesh);
+
+      const points = shape.getPoints();
+      const wallGeom = new THREE.BufferGeometry().setFromPoints(points);
+      floorWallsMesh = new THREE.LineLoop(wallGeom, new THREE.LineBasicMaterial({ color: 0x64748b }));
+      floorWallsMesh.rotation.x = -Math.PI / 2;
+      floorWallsMesh.position.y = 0.03;
+      scene.add(floorWallsMesh);
+    }
+
+    // --- Create 3D Objects Procedurally ---
+    function renderSceneObjects() {
+      // Clear old meshes
+      object3DMap.forEach(mesh => scene.remove(mesh));
+      object3DMap.clear();
+
+      appState.objects.forEach((obj, index) => {
+        const group = new THREE.Group();
+        group.position.set(obj.x, 0, obj.z);
+        group.rotation.y = (obj.rotY || 0) * (Math.PI / 180);
+        group.scale.set(obj.scaleX || 1, obj.scaleY || 1, obj.scaleZ || 1);
+        group.userData = { id: obj.id, introIndex: index, baseScale: new THREE.Vector3(obj.scaleX || 1, obj.scaleY || 1, obj.scaleZ || 1) };
+
+        let mainColor = appState.colors.avail;
+        if (obj.reserved) mainColor = appState.colors.reserved;
+        else if (obj.isVip) mainColor = appState.colors.vip;
+        if (obj.id === appState.selectedObjId) mainColor = appState.colors.select;
+
+        const mat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.5 });
+
+        if (obj.type.startsWith('table')) {
+          // Table Top
+          let topGeom = obj.type === 'table-round' 
+            ? new THREE.CylinderGeometry(1.2, 1.2, 0.1, 32)
+            : new THREE.BoxGeometry(2, 0.1, 1.4);
+          
+          const topMesh = new THREE.Mesh(topGeom, mat);
+          topMesh.position.y = 1;
+          topMesh.castShadow = true;
+          group.add(topMesh);
+
+          // Table Leg
+          const legGeom = new THREE.CylinderGeometry(0.1, 0.1, 1, 16);
+          const legMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
+          const leg = new THREE.Mesh(legGeom, legMat);
+          leg.position.y = 0.5;
+          group.add(leg);
+        } else if (obj.type === 'bookshelf') {
+          const wood = new THREE.MeshStandardMaterial({ color: 0xb89b7b, roughness: 0.78 });
+          const back = new THREE.Mesh(new THREE.BoxGeometry(3.8, 3.1, 0.18), wood);
+          back.position.y = 1.55;
+          group.add(back);
+          [-1.82, 1.82].forEach(x => {
+            const side = new THREE.Mesh(new THREE.BoxGeometry(0.16, 3.2, 0.48), wood);
+            side.position.set(x, 1.6, 0);
+            group.add(side);
+          });
+          for (let y = 0.35; y <= 2.75; y += 0.6) {
+            const shelf = new THREE.Mesh(new THREE.BoxGeometry(3.65, 0.12, 0.55), wood);
+            shelf.position.set(0, y, 0);
+            group.add(shelf);
+          }
+          const bookColors = [0xc98f8b, 0x789586, 0xa89bb8, 0xd6b36a];
+          for (let row = 0; row < 4; row++) {
+            for (let col = 0; col < 5; col++) {
+              const bookMat = new THREE.MeshStandardMaterial({ color: bookColors[(row + col) % bookColors.length] });
+              const book = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.42 + (col % 2) * 0.08, 0.34), bookMat);
+              book.position.set(-1.45 + col * 0.7, 0.58 + row * 0.6, -0.03);
+              group.add(book);
+            }
+          }
+        } else if (obj.type === 'floor-lamp') {
+          const metal = new THREE.MeshStandardMaterial({ color: 0x4a5752, roughness: 0.55 });
+          const shadeMat = new THREE.MeshStandardMaterial({ color: 0xe8d7bd, roughness: 0.8, emissive: 0x332719, emissiveIntensity: 0.25 });
+          const base = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.58, 0.12, 32), metal);
+          base.position.y = 0.06; group.add(base);
+          const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 2.35, 16), metal);
+          pole.position.y = 1.22; group.add(pole);
+          const shade = new THREE.Mesh(new THREE.ConeGeometry(0.58, 0.72, 32, 1, true), shadeMat);
+          shade.position.y = 2.45; group.add(shade);
+          const lampLight = new THREE.PointLight(0xffc477, isNight ? 1.2 : 0.18, 8);
+          lampLight.position.set(0, 2.2, 0); group.add(lampLight);
+        } else if (obj.type === 'coffee-table') {
+          const topMat = new THREE.MeshStandardMaterial({ color: 0xd5b79a, roughness: 0.7 });
+          const top = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.18, 1.3), topMat);
+          top.position.y = 0.62; top.castShadow = true; group.add(top);
+          const legMat = new THREE.MeshStandardMaterial({ color: 0x65736b, roughness: 0.6 });
+          [[-0.95,-0.42],[0.95,-0.42],[-0.95,0.42],[0.95,0.42]].forEach(([x,z]) => {
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.55, 12), legMat);
+            leg.position.set(x, 0.3, z); group.add(leg);
+          });
+        } else if (obj.type === 'pendant-light') {
+          const cordMat = new THREE.MeshStandardMaterial({ color: 0x3d4a45 });
+          const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 2.4, 8), cordMat);
+          cord.position.y = 3.6; group.add(cord);
+          const shadeMat = new THREE.MeshStandardMaterial({ color: 0xd6b36a, roughness: 0.6, emissive: 0x3a2a12, emissiveIntensity: 0.35 });
+          const shade = new THREE.Mesh(new THREE.ConeGeometry(0.52, 0.42, 32, 1, true), shadeMat);
+          shade.position.y = 2.35; group.add(shade);
+          const pendantLight = new THREE.PointLight(0xffbb70, isNight ? 1.35 : 0.16, 10);
+          pendantLight.position.set(0, 2.2, 0); group.add(pendantLight);
+        } else if (obj.type === 'road') {
+          const roadMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.95 });
+          const road = new THREE.Mesh(new THREE.BoxGeometry(50, 0.08, 3.5), roadMat);
+          road.position.y = 0.04;
+          road.receiveShadow = true;
+          group.add(road);
+          // Dashed center line for visual road guidance.
+          const lineMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.8 });
+          for (let x = -22; x <= 22; x += 5) {
+            const mark = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.02, 0.12), lineMat);
+            mark.position.set(x, 0.1, 0);
+            group.add(mark);
+          }
+        } else if (obj.type === 'sofa') {
+          const seatMat = new THREE.MeshStandardMaterial({ color: obj.isVip ? appState.colors.vip : 0x8b5cf6, roughness: 0.6 });
+          const seat = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.45, 1.1), seatMat);
+          seat.position.y = 0.65;
+          seat.castShadow = true;
+          group.add(seat);
+          const back = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.0, 0.25), seatMat);
+          back.position.set(0, 1.15, 0.42);
+          back.castShadow = true;
+          group.add(back);
+          [-1.05, 1.05].forEach(x => {
+            const arm = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.75, 1.1), seatMat);
+            arm.position.set(x, 0.85, 0);
+            arm.castShadow = true;
+            group.add(arm);
+          });
+        } else if (obj.type === 'chair') {
+          const chairMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.7 });
+          const seat = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.12, 0.8), chairMat);
+          seat.position.y = 0.65;
+          seat.castShadow = true;
+          group.add(seat);
+          const back = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 0.12), chairMat);
+          back.position.set(0, 1.05, 0.34);
+          back.castShadow = true;
+          group.add(back);
+          [[-0.3,-0.3],[0.3,-0.3],[-0.3,0.3],[0.3,0.3]].forEach(([x,z]) => {
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.65, 8), chairMat);
+            leg.position.set(x, 0.32, z);
+            group.add(leg);
+          });
+        } else if (obj.type === 'chair-round') {
+          const chairMat = new THREE.MeshStandardMaterial({ color: 0xc2410c, roughness: 0.7 });
+          const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.16, 32), chairMat);
+          seat.position.y = 0.65;
+          seat.castShadow = true;
+          group.add(seat);
+          const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.58, 12), chairMat);
+          stem.position.y = 0.32;
+          group.add(stem);
+          const base = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.08, 24), chairMat);
+          base.position.y = 0.06;
+          group.add(base);
+        } else if (obj.type === 'room-box') {
+          // Four-sided enclosed room with floor and four walls.
+          const roomWallMat = new THREE.MeshStandardMaterial({ color: 0x6366f1, roughness: 0.7, transparent: true, opacity: 0.78 });
+          const roomFloorMat = new THREE.MeshStandardMaterial({ color: 0xc7d2fe, roughness: 0.9 });
+          const roomFloor = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.08, 4.2), roomFloorMat);
+          roomFloor.position.y = 0.04;
+          roomFloor.receiveShadow = true;
+          group.add(roomFloor);
+          const wallHeight = 2.6;
+          const wallThickness = 0.16;
+          const frontBack = new THREE.BoxGeometry(5.5, wallHeight, wallThickness);
+          const sideWall = new THREE.BoxGeometry(wallThickness, wallHeight, 4.2);
+          const front = new THREE.Mesh(frontBack, roomWallMat);
+          front.position.set(0, wallHeight / 2, -2.1);
+          const back = new THREE.Mesh(frontBack, roomWallMat);
+          back.position.set(0, wallHeight / 2, 2.1);
+          const left = new THREE.Mesh(sideWall, roomWallMat);
+          left.position.set(-2.7, wallHeight / 2, 0);
+          const right = new THREE.Mesh(sideWall, roomWallMat);
+          right.position.set(2.7, wallHeight / 2, 0);
+          [front, back, left, right].forEach(wall => {
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            group.add(wall);
+          });
+        } else if (obj.type === 'partition') {
+          const partitionMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.8, transparent: true, opacity: 0.82 });
+          const panel = new THREE.Mesh(new THREE.BoxGeometry(3.5, 2.4, 0.16), partitionMat);
+          panel.position.y = 1.2;
+          panel.castShadow = true;
+          group.add(panel);
+          const frameMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+          [-1.7, 1.7].forEach(x => {
+            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.6, 10), frameMat);
+            post.position.set(x, 1.3, 0);
+            group.add(post);
+          });
+        } else if (obj.type === 'stage') {
+          const stageGeom = new THREE.BoxGeometry(5, 0.6, 2.5);
+          const stageMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+          const stageMesh = new THREE.Mesh(stageGeom, stageMat);
+          stageMesh.position.y = 0.3;
+          group.add(stageMesh);
+        } else if (obj.type === 'bar') {
+          const barGeom = new THREE.BoxGeometry(4, 1.1, 1.2);
+          const barMat = new THREE.MeshStandardMaterial({ color: 0xd97706 });
+          const barMesh = new THREE.Mesh(barGeom, barMat);
+          barMesh.position.y = 0.55;
+          group.add(barMesh);
+        } else if (obj.type === 'tree' || obj.type === 'tree-large') {
+          const isLarge = obj.type === 'tree-large';
+          const potGeom = new THREE.CylinderGeometry(isLarge ? 0.62 : 0.4, isLarge ? 0.48 : 0.3, isLarge ? 0.8 : 0.6, 20);
+          const potMat = new THREE.MeshStandardMaterial({ color: isLarge ? 0xc4a98b : 0xf2eee5, roughness: 0.82 });
+          const pot = new THREE.Mesh(potGeom, potMat);
+          pot.position.y = isLarge ? 0.4 : 0.3;
+          pot.castShadow = true;
+          group.add(pot);
+          const trunkMat = new THREE.MeshStandardMaterial({ color: 0x79563d, roughness: 0.9 });
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(isLarge ? 0.19 : 0.09, isLarge ? 0.27 : 0.13, isLarge ? 2.8 : 0.9, 12), trunkMat);
+          trunk.position.y = isLarge ? 2.0 : 0.95;
+          trunk.castShadow = true;
+          group.add(trunk);
+          const leavesMat = new THREE.MeshStandardMaterial({ color: 0x547b5d, roughness: 0.86 });
+          if (isLarge) {
+            [[0,3.8,0,1.25],[0.72,3.45,0.05,0.92],[-0.7,3.5,-0.08,0.95],[0.15,4.45,0,0.86]].forEach(([x,y,z,r]) => {
+              const crown = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 1), leavesMat);
+              crown.position.set(x,y,z); crown.castShadow = true; group.add(crown);
+            });
+          } else {
+            const crown = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 1), new THREE.MeshStandardMaterial({ color: 0x6d9a72, roughness: 0.8 }));
+            crown.position.y = 1.65; crown.castShadow = true; group.add(crown);
+          }
+        }
+
+        scene.add(group);
+        object3DMap.set(obj.id, group);
+      });
+    }
+
+    // --- Floating Labels Overlay ---
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+    }
+
+    function normalizeBookingTime(value) {
+      const match = String(value || '').trim().match(/^(\d{1,2}):(\d{2})$/);
+      if (!match) return '';
+      const hours = Number(match[1]);
+      const minutes = Number(match[2]);
+      if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return '';
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+
+    function formatBookingTime(value) {
+      const time = normalizeBookingTime(value) || '--:--';
+      return `${time} น.`;
+    }
+
+    function updateCustomerStatusBar() {
+      const tables = appState.objects.filter(o => o.type.startsWith('table'));
+      const active = appState.reservations.filter(r => ['booked', 'partial', 'checked-in'].includes(r.status));
+      const activeTableIds = new Set(active.map(r => r.tableId));
+      const available = tables.filter(t => !activeTableIds.has(t.id)).length;
+      const counts = {
+        available: available,
+        booked: active.filter(r => r.status === 'booked').length,
+        partial: active.filter(r => r.status === 'partial').length,
+        checked: active.filter(r => r.status === 'checked-in').length
+      };
+      Object.entries(counts).forEach(([key, value]) => { const el = document.getElementById(`customer-${key === 'booked' ? 'booked' : key === 'checked' ? 'checked' : key}-count`); if (el) el.textContent = value; });
+      const detail = document.getElementById('customer-status-detail');
+      if (detail) detail.textContent = appState.customerMessage || 'กดที่โต๊ะเพื่อดูสถานะและจองโต๊ะ';
+    }
+
+    function showCustomerTableStatus(tableObj) {
+      const reservation = appState.reservations.find(r => r.tableId === tableObj.id && ['booked', 'partial', 'checked-in'].includes(r.status));
+      appState.selectedObjId = tableObj.id;
+      if (!reservation) appState.customerMessage = `โต๊ะ ${tableObj.id} ว่าง · ${tableObj.seats || 0} ที่นั่ง · กดอีกครั้งเพื่อเปิดแบบฟอร์มจอง`;
+      else appState.customerMessage = `โต๊ะ ${tableObj.id} · ${reservationStatusText(reservation)} · เวลา ${formatBookingTime(reservation.timeSlot)} · ${reservation.customerName}`;
+      updateCustomerStatusBar();
+      updateLabels();
+    }
+
+    function updateLabels() {
+      updateCustomerStatusBar();
+      const container = document.getElementById('labels-container');
+      container.innerHTML = '';
+      // โหมดจัดการผังร้านเน้นการจัดวางวัตถุ จึงไม่แสดงชื่อหรือรายละเอียดโต๊ะ
+      if (appState.mode === 'layout') return;
+      appState.objects.forEach(obj => {
+        if (!obj.type.startsWith('table')) return;
+        const reservation = appState.reservations.find(r => r.tableId === obj.id && ['booked','partial','checked-in'].includes(r.status));
+        const pos = new THREE.Vector3(obj.x, 1.4, obj.z);
+        pos.project(camera);
+        // Show labels for every table that is in front of the camera.
+        // The old pos.z < 1 filter hid many tables in customer mode.
+        if (pos.z > -1 && pos.z < 1) {
+          const x = Math.max(12, Math.min(container.clientWidth - 12, (pos.x * 0.5 + 0.5) * container.clientWidth));
+          const y = Math.max(22, Math.min(container.clientHeight - 18, (-(pos.y * 0.5) + 0.5) * container.clientHeight));
+          const label = document.createElement('div');
+          label.className = 'table-label absolute transform -translate-x-1/2 -translate-y-1/2' + (appState.mode === 'customer' ? (reservation ? ' customer-reserved' : ' customer-available') : '') + (appState.selectedObjId === obj.id && appState.mode === 'customer' ? ' customer-selected' : '');
+          label.style.left = `${x}px`; label.style.top = `${y}px`;
+          label.style.zIndex = '20';
+          const bookingText = reservation ? `<div class="text-[10px] text-rose-600">${escapeHtml(reservation.customerName)} · มา ${reservation.checkedIn || 0}/${reservation.guests}</div>` : '<div class="text-[10px] text-emerald-600">ว่าง · กดเพื่อจอง</div>';
+          label.innerHTML = `<div class="font-bold">${escapeHtml(obj.id)} <span class="font-normal">(${obj.seats}ที่)</span></div>${bookingText}`;
+          container.appendChild(label);
+        }
+      });
+    }
+
+    // --- Interactive Raycasting, Selection & Dragging ---
+    function updatePointerFromEvent(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+    }
+
+    function getObjectGroupFromIntersection(intersection) {
+      let group = intersection && intersection.object;
+      while (group && group.parent && group.parent.type !== 'Scene') group = group.parent;
+      return group && group.userData && group.userData.id ? group : null;
+    }
+
+    function selectObject(objId, targetObj) {
+      appState.selectedObjId = objId;
+      if (appState.mode === 'layout') showObjectInspector(targetObj);
+      renderSceneObjects();
+    }
+
+    function onCanvasPointerDown(event) {
+      updatePointerFromEvent(event);
+      const intersects = raycaster.intersectObjects(scene.children, true);
+      const hit = intersects.map(getObjectGroupFromIntersection).find(Boolean);
+      if (!hit) return;
+
+      const objId = hit.userData.id;
+      const targetObj = appState.objects.find(o => o.id === objId);
+      if (!targetObj) return;
+
+      if (appState.mode === 'customer') {
+        if (targetObj.type.startsWith('table')) {
+          // Remember the selected table so the customer camera-view button can find it.
+          appState.selectedObjId = objId;
+          const currentReservation = appState.reservations.find(r => r.tableId === objId && ['booked', 'partial', 'checked-in'].includes(r.status));
+          showCustomerTableStatus(targetObj);
+          if (!currentReservation && !targetObj.reserved) {
+            openBookingModal(targetObj);
+          }
+          renderSceneObjects();
+        }
+        return;
+      }
+
+      // Admin can select a table for the seat-view camera without enabling layout edits.
+      if (appState.mode === 'admin') {
+        if (targetObj.type.startsWith('table')) {
+          appState.selectedObjId = objId;
+          appState.customerMessage = `เลือกโต๊ะ ${objId} แล้ว กด “มุมนั่งจริง” เพื่อดู`;
+          updateCustomerStatusBar();
+          renderSceneObjects();
+        }
+        return;
+      }
+      // Only layout mode can move objects.
+      if (appState.mode !== 'layout') return;
+      selectObject(objId, targetObj);
+      draggedObjId = objId;
+      if (raycaster.ray.intersectPlane(dragPlane, dragPoint)) {
+        dragOffset.set(targetObj.x - dragPoint.x, 0, targetObj.z - dragPoint.z);
+      } else {
+        dragOffset.set(0, 0, 0);
+      }
+      renderer.domElement.setPointerCapture?.(event.pointerId);
+      // Lock camera orbit while dragging so the object follows the mouse immediately.
+      controls.enabled = false;
+      renderer.domElement.style.cursor = 'grabbing';
+      event.preventDefault();
+    }
+
+    function onCanvasPointerMove(event) {
+      if (!draggedObjId || appState.mode !== 'layout') return;
+      updatePointerFromEvent(event);
+      if (!raycaster.ray.intersectPlane(dragPlane, dragPoint)) return;
+
+      const obj = appState.objects.find(o => o.id === draggedObjId);
+      const group = object3DMap.get(draggedObjId);
+      if (!obj || !group) return;
+
+      // Keep objects within the editable 30 x 30 workspace.
+      obj.x = Math.max(-14.5, Math.min(14.5, dragPoint.x + dragOffset.x));
+      obj.z = Math.max(-14.5, Math.min(14.5, dragPoint.z + dragOffset.z));
+      group.position.set(obj.x, 0, obj.z);
+      updatePositionInputs(obj);
+      updateLabels();
+    }
+
+    function onCanvasPointerUp(event) {
+      if (!draggedObjId) return;
+      renderer.domElement.releasePointerCapture?.(event.pointerId);
+      draggedObjId = null;
+      controls.enabled = true;
+      renderer.domElement.style.cursor = 'grab';
+    }
+
+    // Kept as a compatibility wrapper for existing callers.
+    function onCanvasClick(event) {
+      onCanvasPointerDown(event);
+      onCanvasPointerUp(event);
+    }
+
+    // --- Admin Inspector Controls ---
+    function showObjectInspector(obj) {
+      const panel = document.getElementById('inspector-panel');
+      if (!obj) { panel.classList.add('hidden'); return; }
+
+      panel.classList.remove('hidden');
+      document.getElementById('obj-name-input').value = obj.id;
+      updatePositionInputs(obj);
+      document.getElementById('obj-seats-input').value = obj.seats || 4;
+      document.getElementById('obj-vip-input').value = obj.isVip ? 'true' : 'false';
+      document.getElementById('scale-y').value = obj.scaleY || 1;
+      document.getElementById('scale-x').value = obj.scaleX || 1;
+      document.getElementById('scale-z').value = obj.scaleZ || 1;
+      document.getElementById('rot-y').value = obj.rotY || 0;
+
+      document.getElementById('val-scale-y').innerText = obj.scaleY || 1;
+      document.getElementById('val-scale-x').innerText = obj.scaleX || 1;
+      document.getElementById('val-scale-z').innerText = obj.scaleZ || 1;
+      document.getElementById('val-rot-y').innerText = (obj.rotY || 0) + '°';
+    }
+
+    function updatePositionInputs(obj) {
+      const xInput = document.getElementById('obj-x-input');
+      const zInput = document.getElementById('obj-z-input');
+      if (xInput) xInput.value = Number(obj.x || 0).toFixed(1);
+      if (zInput) zInput.value = Number(obj.z || 0).toFixed(1);
+    }
+
+    function updateSelectedObjectPosition() {
+      if (!appState.selectedObjId) return;
+      const obj = appState.objects.find(o => o.id === appState.selectedObjId);
+      if (!obj) return;
+      obj.x = Math.max(-14.5, Math.min(14.5, parseFloat(document.getElementById('obj-x-input').value) || 0));
+      obj.z = Math.max(-14.5, Math.min(14.5, parseFloat(document.getElementById('obj-z-input').value) || 0));
+      updatePositionInputs(obj);
+      renderSceneObjects();
+    }
+
+    function updateSelectedObjectScale() {
+      if (!appState.selectedObjId) return;
+      const obj = appState.objects.find(o => o.id === appState.selectedObjId);
+      if (!obj) return;
+
+      obj.scaleY = parseFloat(document.getElementById('scale-y').value);
+      obj.scaleX = parseFloat(document.getElementById('scale-x').value);
+      obj.scaleZ = parseFloat(document.getElementById('scale-z').value);
+      obj.rotY = parseInt(document.getElementById('rot-y').value);
+
+      document.getElementById('val-scale-y').innerText = obj.scaleY;
+      document.getElementById('val-scale-x').innerText = obj.scaleX;
+      document.getElementById('val-scale-z').innerText = obj.scaleZ;
+      document.getElementById('val-rot-y').innerText = obj.rotY + '°';
+
+      renderSceneObjects();
+    }
+
+    function updateSelectedObjectProps() {
+      if (!appState.selectedObjId) return;
+      const obj = appState.objects.find(o => o.id === appState.selectedObjId);
+      if (!obj) return;
+
+      const oldId = obj.id;
+      const newId = document.getElementById('obj-name-input').value.trim();
+      if (!newId) {
+        document.getElementById('obj-name-input').value = oldId;
+        return;
+      }
+      const duplicate = appState.objects.some(item => item !== obj && item.id.toLowerCase() === newId.toLowerCase());
+      if (duplicate) {
+        document.getElementById('obj-name-input').value = oldId;
+        alert('ชื่อนี้ถูกใช้งานแล้ว กรุณาตั้งชื่อโต๊ะใหม่');
+        return;
+      }
+      if (oldId !== newId) {
+        appState.reservations.forEach(r => { if (r.tableId === oldId) r.tableId = newId; });
+        obj.id = newId;
+        appState.selectedObjId = newId;
+      }
+      obj.seats = parseInt(document.getElementById('obj-seats-input').value) || 1;
+      obj.isVip = document.getElementById('obj-vip-input').value === 'true';
+
+      renderSceneObjects();
+      renderReservationList();
+    }
+
+    function duplicateSelectedObject() {
+      const source = appState.objects.find(o => o.id === appState.selectedObjId);
+      if (!source) { alert('กรุณาเลือกวัตถุที่ต้องการคัดลอกก่อน'); return; }
+      let newId;
+      const prefix = source.type.startsWith('table') ? 'T-' : 'OBJ-';
+      do { newId = prefix + Math.floor(10 + Math.random() * 90); }
+      while (appState.objects.some(o => o.id.toLowerCase() === newId.toLowerCase()));
+      const copy = { ...source, id: newId,
+        x: Math.max(-14.5, Math.min(14.5, Number(source.x || 0) + 1.25)),
+        z: Math.max(-14.5, Math.min(14.5, Number(source.z || 0) + 1.25)) };
+      appState.objects.push(copy);
+      appState.selectedObjId = newId;
+      renderSceneObjects();
+      showObjectInspector(copy);
+      const status = document.getElementById('save-status');
+      if (status) status.textContent = 'มีการแก้ไขผัง · กดบันทึกผัง';
+    }
+
+    function deleteSelectedObject() {
+      if (!appState.selectedObjId) return;
+      appState.objects = appState.objects.filter(o => o.id !== appState.selectedObjId);
+      appState.selectedObjId = null;
+      document.getElementById('inspector-panel').classList.add('hidden');
+      renderSceneObjects();
+    }
+
+    function addObject(type) {
+      const newId = (type.startsWith('table') ? 'T-' : 'OBJ-') + Math.floor(10 + Math.random() * 90);
+      appState.objects.push({
+        id: newId,
+        type: type,
+        x: 0,
+        z: 0,
+        scaleX: 1,
+        scaleY: 1,
+        scaleZ: 1,
+        rotY: 0,
+        seats: type === 'sofa' ? 4 : ((type === 'chair' || type === 'chair-round') ? 1 : (type === 'room-box' || type === 'road' || type === 'partition' || type === 'bookshelf' || type === 'floor-lamp' || type === 'coffee-table' || type === 'pendant-light' || type === 'tree' || type === 'tree-large' ? 0 : 4)),
+        reserved: false,
+        isVip: type === 'sofa',
+        ...(type === 'tree-large' ? { scaleX: 1.2, scaleY: 1.2, scaleZ: 1.2 } : {})
+      });
+      appState.selectedObjId = newId;
+      renderSceneObjects();
+      showObjectInspector(appState.objects[appState.objects.length - 1]);
+    }
+
+    function saveLayout() {
+      const payload = {
+        version: 1,
+        savedAt: new Date().toISOString(),
+        colors: appState.colors,
+        boundaryPoints: appState.boundaryPoints,
+        objects: appState.objects
+      };
+      const status = document.getElementById('save-status');
+      try {
+        localStorage.setItem('atelier-layout-v1', JSON.stringify(payload));
+        appState.layoutUpdatedAt = payload.savedAt;
+        localStorage.setItem('atelier-layout-updated-at', payload.savedAt);
+        syncLayoutToSheet(true, payload);
+        const savedTime = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        if (status) status.textContent = 'บันทึกแล้ว ' + savedTime;
+      } catch (error) {
+        console.error('Unable to save restaurant layout:', error);
+        if (status) status.textContent = 'บันทึกไม่สำเร็จ';
+        alert('บันทึกผังไม่สำเร็จ กรุณาตรวจสอบพื้นที่จัดเก็บของเบราว์เซอร์');
+      }
+    }
+
+    function loadLayout() {
+      try {
+        const raw = localStorage.getItem('atelier-layout-v1');
+        if (!raw) { alert('ยังไม่มีผังที่บันทึกไว้ในเบราว์เซอร์นี้'); return; }
+        const payload = JSON.parse(raw);
+        if (!payload || !Array.isArray(payload.objects)) throw new Error('Invalid layout data');
+        if (payload.colors) appState.colors = payload.colors;
+        if (Array.isArray(payload.boundaryPoints)) appState.boundaryPoints = payload.boundaryPoints;
+        appState.objects = payload.objects;
+        appState.layoutUpdatedAt = payload.savedAt || new Date().toISOString();
+        localStorage.setItem('atelier-layout-updated-at', appState.layoutUpdatedAt);
+        appState.selectedObjId = null;
+        rebuildFloorGeometry();
+        renderSceneObjects();
+        document.getElementById('inspector-panel')?.classList.add('hidden');
+        const status = document.getElementById('save-status');
+        if (status) status.textContent = 'โหลดผังที่บันทึกไว้แล้ว';
+      } catch (error) {
+        console.error('Unable to load restaurant layout:', error);
+        alert('โหลดผังไม่สำเร็จ ข้อมูลที่บันทึกไว้อาจเสียหาย');
+      }
+    }
+
+    function clearSavedLayout() {
+      localStorage.removeItem('atelier-layout-v1');
+      const status = document.getElementById('save-status');
+      if (status) status.textContent = 'ลบข้อมูลบันทึกแล้ว';
+    }
+
+    function applyLayoutPayload(payload, source = 'ชีต') {
+      if (!payload || !Array.isArray(payload.objects)) throw new Error('Invalid layout data');
+      if (payload.colors) appState.colors = payload.colors;
+      if (Array.isArray(payload.boundaryPoints)) appState.boundaryPoints = payload.boundaryPoints;
+      appState.objects = payload.objects;
+      appState.layoutUpdatedAt = payload.savedAt || new Date().toISOString();
+      localStorage.setItem('atelier-layout-v1', JSON.stringify({
+        version: payload.version || 1,
+        savedAt: appState.layoutUpdatedAt,
+        colors: appState.colors,
+        boundaryPoints: appState.boundaryPoints,
+        objects: appState.objects
+      }));
+      localStorage.setItem('atelier-layout-updated-at', appState.layoutUpdatedAt);
+      appState.selectedObjId = null;
+      rebuildFloorGeometry();
+      renderSceneObjects();
+      document.getElementById('inspector-panel')?.classList.add('hidden');
+      const status = document.getElementById('save-status');
+      if (status) status.textContent = `โหลดผังส่วนกลางแล้ว (${source})`;
+    }
+
+    async function syncLayoutToSheet(showStatus = false, layoutPayload = null) {
+      if (!appState.sheetEndpoint) return;
+      const status = document.getElementById('sheet-sync-status');
+      const sideStatus = document.getElementById('sheet-sync-status-sidebar');
+      if (showStatus) {
+        if (status) status.textContent = 'กำลังบันทึกผัง...';
+        if (sideStatus) sideStatus.textContent = 'กำลังบันทึกผัง...';
+      }
+      try {
+        const payload = layoutPayload || JSON.parse(localStorage.getItem('atelier-layout-v1') || 'null');
+        if (!payload) return;
+        await fetch(appState.sheetEndpoint, {
+          method: 'POST', mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ source: 'ATELIER', appScriptVersion: 'v2', action: 'upsertLayout', layout: payload, updatedAt: payload.savedAt || new Date().toISOString() })
+        });
+        if (showStatus) {
+          const text = 'บันทึกผังส่วนกลางแล้ว ' + new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+          if (status) status.textContent = text;
+          if (sideStatus) sideStatus.textContent = text;
+        }
+      } catch (error) {
+        console.error('Unable to sync restaurant layout:', error);
+        if (showStatus) {
+          if (status) status.textContent = 'บันทึกผังไม่สำเร็จ';
+          if (sideStatus) sideStatus.textContent = 'บันทึกผังไม่สำเร็จ';
+        }
+      }
+    }
+
+    async function loadLayoutFromSheet(showStatus = false) {
+      if (!appState.sheetEndpoint) return;
+      try {
+        const separator = appState.sheetEndpoint.includes('?') ? '&' : '?';
+        const response = await fetch(`${appState.sheetEndpoint}${separator}action=getLayout&source=ATELIER`, { method: 'GET', mode: 'cors', cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const result = await response.json();
+        const remote = result.layout || result.data || result;
+        if (!remote || !Array.isArray(remote.objects)) return;
+        const remoteTime = new Date(remote.savedAt || remote.updatedAt || 0).getTime();
+        const localTime = new Date(appState.layoutUpdatedAt || 0).getTime();
+        if (remoteTime > localTime) applyLayoutPayload(remote, 'Google Sheets');
+        else if (showStatus) {
+          const status = document.getElementById('sheet-sync-status');
+          const sideStatus = document.getElementById('sheet-sync-status-sidebar');
+          if (status) status.textContent = 'เชื่อมต่อ Google Sheets แล้ว';
+          if (sideStatus) sideStatus.textContent = 'เชื่อมต่อ Google Sheets แล้ว';
+        }
+      } catch (error) {
+        console.warn('Unable to load restaurant layout from Google Sheets:', error);
+        if (showStatus) {
+          const status = document.getElementById('sheet-sync-status');
+          const sideStatus = document.getElementById('sheet-sync-status-sidebar');
+          if (status) status.textContent = 'โหลดผังจากชีตไม่สำเร็จ';
+          if (sideStatus) sideStatus.textContent = 'โหลดผังจากชีตไม่สำเร็จ';
+        }
+      }
+    }
+
+    // --- 2D Boundary Canvas (10-Point Editor) ---
+    let bCanvas, bCtx, draggingPointIdx = -1;
+
+    function init2DBoundaryCanvas() {
+      bCanvas = document.getElementById('boundary-canvas');
+      bCtx = bCanvas.getContext('2d');
+
+      draw2DBoundary();
+
+      bCanvas.addEventListener('mousedown', (e) => {
+        const rect = bCanvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        appState.boundaryPoints.forEach((pt, i) => {
+          const cx = (pt.x + 15) * (260 / 30);
+          const cy = (pt.z + 15) * (260 / 30);
+          if (Math.hypot(cx - mx, cy - my) < 12) draggingPointIdx = i;
+        });
+      });
+
+      bCanvas.addEventListener('mousemove', (e) => {
+        if (draggingPointIdx === -1) return;
+        const rect = bCanvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        appState.boundaryPoints[draggingPointIdx].x = (mx / (260 / 30)) - 15;
+        appState.boundaryPoints[draggingPointIdx].z = (my / (260 / 30)) - 15;
+
+        draw2DBoundary();
+        rebuildFloorGeometry();
+      });
+
+      window.addEventListener('mouseup', () => draggingPointIdx = -1);
+    }
+
+    function draw2DBoundary() {
+      bCtx.clearRect(0, 0, 260, 260);
+      bCtx.strokeStyle = '#38bdf8';
+      bCtx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+      bCtx.lineWidth = 2;
+
+      bCtx.beginPath();
+      appState.boundaryPoints.forEach((pt, i) => {
+        const cx = (pt.x + 15) * (260 / 30);
+        const cy = (pt.z + 15) * (260 / 30);
+        if (i === 0) bCtx.moveTo(cx, cy);
+        else bCtx.lineTo(cx, cy);
+      });
+      bCtx.closePath();
+      bCtx.fill();
+      bCtx.stroke();
+
+      // Points Control Handles
+      appState.boundaryPoints.forEach((pt, i) => {
+        const cx = (pt.x + 15) * (260 / 30);
+        const cy = (pt.z + 15) * (260 / 30);
+        bCtx.fillStyle = '#f43f5e';
+        bCtx.beginPath();
+        bCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+        bCtx.fill();
+      });
+    }
+
+    function resetBoundaryPoints() {
+      appState.boundaryPoints = [
+        { x: -10, z: -10 },
+        { x: 0, z: -10 },
+        { x: 10, z: -10 },
+        { x: 12, z: 2 },
+        { x: 10, z: 6 },
+        { x: 8, z: 10 },
+        { x: 0, z: 11 },
+        { x: -8, z: 10 },
+        { x: -10, z: 6 },
+        { x: -12, z: 2 }
+      ];
+      draw2DBoundary();
+      rebuildFloorGeometry();
+    }
+
+    // --- Custom Colors ---
+    function updateCustomColors() {
+      appState.colors.avail = document.getElementById('color-avail').value;
+      appState.colors.reserved = document.getElementById('color-reserved').value;
+      appState.colors.vip = document.getElementById('color-vip').value;
+      appState.colors.select = document.getElementById('color-select').value;
+      appState.colors.floor = document.getElementById('color-floor').value;
+      appState.colors.bg = document.getElementById('color-bg').value;
+
+      document.getElementById('legend-avail-dot').style.backgroundColor = appState.colors.avail;
+      document.getElementById('legend-reserved-dot').style.backgroundColor = appState.colors.reserved;
+      document.getElementById('legend-vip-dot').style.backgroundColor = appState.colors.vip;
+      document.getElementById('legend-select-dot').style.backgroundColor = appState.colors.select;
+
+      scene.background = new THREE.Color(appState.colors.bg);
+      rebuildFloorGeometry();
+      renderSceneObjects();
+    }
+
+    function refreshAdminBookingTableOptions() {
+      const select = document.getElementById('admin-booking-table');
+      if (!select) return;
+      const activeIds = new Set(appState.reservations.filter(r => ['booked', 'partial', 'checked-in'].includes(r.status)).map(r => r.tableId));
+      const tables = appState.objects.filter(o => o.type.startsWith('table') && !activeIds.has(o.id) && !o.reserved);
+      select.innerHTML = tables.length ? tables.map(t => `<option value="${escapeHtml(t.id)}">โต๊ะ ${escapeHtml(t.id)} · ${t.seats || 0} ที่นั่ง</option>`).join('') : '<option value="">ไม่มีโต๊ะว่าง</option>';
+    }
+
+    function openAdminBookingForm() {
+      const id = document.getElementById('admin-booking-table')?.value;
+      const table = appState.objects.find(o => o.id === id);
+      if (!table) { alert('ขณะนี้ไม่มีโต๊ะว่างสำหรับเพิ่มการจอง'); return; }
+      appState.selectedObjId = table.id;
+      openBookingModal(table);
+    }
+
+    function replayIntroAnimation() {
+      introStart = performance.now();
+      introComplete = false;
+      appState.objects.forEach(obj => {
+        const group = object3DMap.get(obj.id);
+        if (!group || !group.userData.baseScale) return;
+        group.visible = false;
+        group.scale.copy(group.userData.baseScale).multiplyScalar(0.08);
+        group.position.y = 0;
+      });
+    }
+
+    function scheduleAnimationStop() {
+      if (appState.animationTimer) clearTimeout(appState.animationTimer);
+      appState.animationTimer = setTimeout(() => {
+        if (appState.animationLoop && appState.animationPlaying) {
+          replayIntroAnimation();
+          scheduleAnimationStop();
+          updateAnimationControls();
+        } else {
+          appState.animationPlaying = false;
+          appState.animationTimer = null;
+          updateAnimationControls();
+        }
+      }, appState.animationDuration * 1000);
+    }
+
+    function toggleAnimationPlayback() {
+      if (appState.animationTimer) {
+        clearTimeout(appState.animationTimer);
+        appState.animationTimer = null;
+      }
+      appState.animationPlaying = !appState.animationPlaying;
+      const isPlaying = appState.animationPlaying;
+      if (isPlaying) {
+        replayIntroAnimation();
+        const input = document.getElementById('animation-duration');
+        appState.animationDuration = Math.max(1, Math.min(3600, parseInt(input?.value, 10) || 30));
+        if (input) input.value = appState.animationDuration;
+        appState.animationLoop = Boolean(document.getElementById('animation-loop')?.checked);
+        scheduleAnimationStop();
+      }
+      updateAnimationControls();
+    }
+
+    function updateAnimationControls() {
+      const isPlaying = appState.animationPlaying;
+      const quick = document.getElementById('quick-animation');
+      if (quick) quick.textContent = isPlaying ? 'Ⅱ หยุดแอนิเมชัน' : '▶ เล่นแอนิเมชัน';
+      const status = document.getElementById('animation-status');
+      if (status) status.textContent = isPlaying ? `กำลังเล่น · รอบละ ${appState.animationDuration} วินาที${appState.animationLoop ? ' · เล่นวน' : ''}` : `หยุดแล้ว · ตั้งไว้ ${appState.animationDuration} วินาที${appState.animationLoop ? ' · เล่นวน' : ''}`;
+      document.body.classList.toggle('animation-paused', !isPlaying);
+    }
+
+
+    // --- Booking Modal Actions ---
+    function todayLocalISO() {
+      const now = new Date();
+      const offset = now.getTimezoneOffset();
+      return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10);
+    }
+
+    function openBookingModal(tableObj, reservation = null) {
+      appState.editingReservationId = reservation ? reservation.id : null;
+      document.getElementById('modal-table-title').innerText = `โต๊ะ ${tableObj.id}`;
+      document.getElementById('booking-name').value = reservation?.customerName || '';
+      document.getElementById('booking-phone').value = reservation?.phone || '';
+      document.getElementById('modal-guest-count').value = reservation?.guests || tableObj.seats || 4;
+      document.getElementById('booking-date').value = reservation?.bookingDate || todayLocalISO();
+      document.getElementById('booking-time').value = normalizeBookingTime(reservation?.timeSlot || '22:00') || '22:00';
+      document.getElementById('booking-submit').innerText = reservation ? 'บันทึกการแก้ไข' : 'ยืนยันการจองโต๊ะนี้';
+      document.getElementById('booking-modal').classList.remove('hidden');
+    }
+
+    function closeBookingModal() {
+      appState.editingReservationId = null;
+      document.getElementById('booking-modal').classList.add('hidden');
+      document.getElementById('booking-submit').innerText = 'ยืนยันการจองโต๊ะนี้';
+    }
+
+    function confirmBooking(e) {
+      e.preventDefault();
+      const obj = appState.objects.find(o => o.id === appState.selectedObjId);
+      if (!obj) return;
+      const name = document.getElementById('booking-name').value.trim();
+      const phone = document.getElementById('booking-phone').value.trim();
+      const guests = parseInt(document.getElementById('modal-guest-count').value, 10) || obj.seats || 1;
+      const bookingDate = document.getElementById('booking-date').value;
+      const timeInput = document.getElementById('booking-time');
+      const timeSlot = normalizeBookingTime(timeInput.value);
+      if (!timeSlot) {
+        timeInput.setCustomValidity('กรุณากรอกเวลาแบบ 24 ชั่วโมง เช่น 09:30 หรือ 22:00');
+        timeInput.reportValidity();
+        return;
+      }
+      timeInput.setCustomValidity('');
+      const editingId = appState.editingReservationId;
+      const existing = editingId && appState.reservations.find(r => r.id === editingId);
+
+      if (existing) {
+        existing.customerName = name;
+        existing.phone = phone;
+        existing.guests = guests;
+        existing.bookingDate = bookingDate;
+        existing.timeSlot = timeSlot;
+        existing.updatedAt = new Date().toISOString();
+        saveReservations();
+        closeBookingModal();
+        renderSceneObjects();
+        renderReservationList();
+        alert('บันทึกการแก้ไขรายการจองแล้ว');
+        return;
+      }
+
+      const now = new Date();
+      const reservation = {
+        id: 'RSV-' + Date.now().toString().slice(-6),
+        tableId: obj.id,
+        customerName: name,
+        phone,
+        guests,
+        bookingDate,
+        timeSlot,
+        bookedAt: now.toISOString(),
+        deadline: new Date(now.getTime() + appState.lateReleaseMinutes * 60000).toISOString(),
+        status: 'booked',
+        checkedIn: 0
+      };
+      appState.reservations = appState.reservations.filter(r => r.tableId !== obj.id || !['booked', 'partial'].includes(r.status));
+      appState.reservations.push(reservation);
+      obj.reserved = true;
+      obj.reservationId = reservation.id;
+      saveReservations();
+      closeBookingModal();
+      renderSceneObjects();
+      renderReservationList();
+      alert('ทำรายการจองเรียบร้อยแล้ว! โต๊ะจะถูกปล่อยเมื่อเกินเวลาผ่อนผัน');
+    }
+
+    function editReservation(id) {
+      const reservation = appState.reservations.find(item => item.id === id);
+      const obj = reservation && appState.objects.find(item => item.id === reservation.tableId);
+      if (!reservation || !obj || !['booked', 'partial'].includes(reservation.status)) return;
+      appState.selectedObjId = obj.id;
+      openBookingModal(obj, reservation);
+    }
+
+    function deleteReservation(id) {
+      const reservation = appState.reservations.find(item => item.id === id);
+      if (!reservation) return;
+      if (!confirm(`ยืนยันลบรายการจองของ ${reservation.customerName} โต๊ะ ${reservation.tableId} ใช่หรือไม่?`)) return;
+      appState.reservations = appState.reservations.filter(item => item.id !== id);
+      const obj = appState.objects.find(item => item.id === reservation.tableId);
+      if (obj && obj.reservationId === id) {
+        obj.reserved = false;
+        obj.reservationId = null;
+      }
+      saveReservations();
+      renderSceneObjects();
+      renderReservationList();
+    }
+
+    function saveReservations() {
+      const customers = Array.from(new Map(appState.reservations.filter(r => r.customerName || r.phone).map(r => {
+        const key = r.phone || r.customerName;
+        return [key, { customerId: key, customerName: r.customerName, phone: r.phone, lastBookingDate: r.bookingDate || '', lastTimeSlot: r.timeSlot || '', updatedAt: r.updatedAt || r.bookedAt || new Date().toISOString() }];
+      })).values());
+      localStorage.setItem('atelier-reservations-v1', JSON.stringify({ reservations: appState.reservations, customers, lateReleaseMinutes: appState.lateReleaseMinutes }));
+      localStorage.setItem('atelier-customers-v1', JSON.stringify({ customers, updatedAt: new Date().toISOString() }));
+      syncReservationsToSheet();
+    }
+
+    function loadSavedReservations() {
+      try {
+        const raw = localStorage.getItem('atelier-reservations-v1');
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        appState.reservations = Array.isArray(saved.reservations) ? saved.reservations : [];
+        appState.lateReleaseMinutes = Number(saved.lateReleaseMinutes) || 15;
+        const input = document.getElementById('late-release-minutes');
+        if (input) input.value = appState.lateReleaseMinutes;
+        const panelInput = document.getElementById('late-release-minutes-panel');
+        if (panelInput) panelInput.value = appState.lateReleaseMinutes;
+        const sheetInput = document.getElementById('sheet-endpoint');
+        if (sheetInput) sheetInput.value = appState.sheetEndpoint;
+        const sheetSideInput = document.getElementById('sheet-endpoint-sidebar');
+        if (sheetSideInput) sheetSideInput.value = appState.sheetEndpoint;
+        appState.reservations.forEach(r => {
+          const obj = appState.objects.find(o => o.id === r.tableId);
+          if (obj && ['booked', 'partial', 'checked-in'].includes(r.status)) { obj.reserved = true; obj.reservationId = r.id; }
+        });
+        renderSceneObjects();
+      } catch (error) { appState.reservations = []; }
+    }
+
+    function updateLateReleaseMinutes() {
+      const value = Math.max(1, Math.min(180, parseInt(document.getElementById('late-release-minutes').value, 10) || 15));
+      appState.lateReleaseMinutes = value;
+      document.getElementById('late-release-minutes').value = value;
+      saveReservations();
+    }
+
+    function checkInReservation(id) {
+      const r = appState.reservations.find(item => item.id === id);
+      if (!r || r.status !== 'booked') return;
+      const arrived = prompt(`ลูกค้ามาแล้วกี่คน (จองไว้ ${r.guests} คน)`, String(r.guests));
+      if (arrived === null) return;
+      r.checkedIn = Math.max(0, Math.min(r.guests, parseInt(arrived, 10) || 0));
+      r.status = r.checkedIn >= r.guests ? 'checked-in' : 'partial';
+      r.checkedInAt = new Date().toISOString();
+      saveReservations();
+      renderReservationList();
+    }
+
+    function releaseReservation(id, reason = 'manual') {
+      const r = appState.reservations.find(item => item.id === id);
+      if (!r || !['booked', 'partial'].includes(r.status)) return;
+      r.status = reason === 'late' ? 'released-late' : 'released';
+      r.releasedAt = new Date().toISOString();
+      const obj = appState.objects.find(o => o.id === r.tableId);
+      if (obj) { obj.reserved = false; obj.reservationId = null; }
+      saveReservations();
+      renderSceneObjects();
+      renderReservationList();
+    }
+
+    function autoReleaseLateReservations(showMessage = false) {
+      const now = Date.now();
+      let released = 0;
+      appState.reservations.forEach(r => {
+        if (r.status === 'booked' && r.deadline && now >= new Date(r.deadline).getTime()) {
+          releaseReservation(r.id, 'late');
+          released++;
+        }
+      });
+      if (showMessage) alert(released ? `ปล่อยโต๊ะแล้ว ${released} รายการ` : 'ยังไม่มีรายการที่เกินเวลาผ่อนผัน');
+    }
+
+    function reservationStatusText(r) {
+      if (r.status === 'booked') return 'รอเช็คอิน';
+      if (r.status === 'partial') return `มาแล้ว ${r.checkedIn}/${r.guests} คน`;
+      if (r.status === 'checked-in') return 'เช็คอินครบแล้ว';
+      if (r.status === 'released-late') return 'ปล่อยโต๊ะเพราะมาสาย';
+      return 'ยกเลิก/ปล่อยโต๊ะ';
+    }
+
+    function renderReservationList() {
+      autoReleaseLateReservations(false);
+      const boxes = [document.getElementById('reservation-list'), document.getElementById('reservation-list-live')].filter(Boolean);
+      if (!boxes.length) return;
+      const activeReservations = appState.reservations.filter(r => ['booked', 'partial', 'checked-in'].includes(r.status));
+      const setAdminStat = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+      setAdminStat('admin-stat-active', activeReservations.length);
+      setAdminStat('admin-stat-waiting', activeReservations.filter(r => r.status === 'booked').length);
+      setAdminStat('admin-stat-checked', activeReservations.filter(r => ['partial', 'checked-in'].includes(r.status)).length);
+      const html = !appState.reservations.length ? '<div class="p-4 text-center text-xs text-slate-400 bg-white rounded-xl border border-slate-200">ยังไม่มีรายการจอง</div>' : appState.reservations.slice().reverse().map(r => {
+        const canAct = ['booked', 'partial'].includes(r.status);
+        const deadline = r.deadline ? new Date(r.deadline).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-';
+        const manage = canAct ? `<button onclick="editReservation('${r.id}')" class="px-2 py-1 rounded-lg bg-sky-50 text-sky-700">แก้ไข</button><button onclick="deleteReservation('${r.id}')" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-600">ลบ</button>` : '';
+        const adminActions = canAct ? `<button onclick="checkInReservation('${r.id}')" class="px-2 py-1 rounded-lg bg-emerald-500 text-white">เช็คอิน</button><button onclick="releaseReservation('${r.id}')" class="px-2 py-1 rounded-lg bg-rose-50 text-rose-600">ปล่อยโต๊ะ</button>` : '';
+        return `<div class="p-3 rounded-xl border border-slate-200 bg-white shadow-sm space-y-2"><div class="flex justify-between items-start gap-2"><div><div class="text-xs font-bold text-slate-700">${escapeHtml(r.customerName)} · โต๊ะ ${escapeHtml(r.tableId)}</div><div class="text-[10px] text-slate-500">${escapeHtml(r.phone)} · ${r.guests} คน · ${escapeHtml(r.bookingDate || '-')} · ${escapeHtml(formatBookingTime(r.timeSlot))}</div></div><span class="text-[10px] px-2 py-1 rounded-full ${r.status === 'released-late' ? 'bg-rose-50 text-rose-600' : (r.status === 'partial' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700')}">${reservationStatusText(r)}</span></div><div class="flex justify-between items-center text-[10px] text-slate-400 gap-2"><span>ปล่อยหลัง ${deadline}</span><div class="flex gap-1 flex-wrap justify-end">${manage}${adminActions}</div></div></div>`;
+      }).join('');
+      boxes.forEach(box => box.innerHTML = html);
+      refreshAdminBookingTableOptions();
+    }
+
+    function toggleReservationsPanel() {
+      if (appState.mode === 'admin') {
+        document.getElementById('reservation-panel')?.classList.add('hidden');
+        openAdminTab('reservations');
+        return;
+      }
+      if (appState.mode === 'layout') {
+        alert('รายชื่อการจองอยู่ในโหมดแอดมิน · จัดการจอง');
+        return;
+      }
+      const panel = document.getElementById('reservation-panel');
+      panel.classList.toggle('hidden');
+      if (!panel.classList.contains('hidden')) {
+        const input = document.getElementById('sheet-endpoint');
+        if (input) input.value = appState.sheetEndpoint;
+        renderReservationList();
+      }
+    }
+
+    function updateLateReleaseMinutesFromPanel() {
+      const input = document.getElementById('late-release-minutes-panel');
+      document.getElementById('late-release-minutes').value = input.value;
+      updateLateReleaseMinutes();
+    }
+
+    function connectSheet() {
+      const url = document.getElementById('sheet-endpoint').value.trim();
+      appState.sheetEndpoint = url;
+      localStorage.setItem('atelier-sheet-endpoint', url);
+      syncReservationsToSheet(true);
+      loadLayoutFromSheet(true);
+    }
+
+    function connectSheetFromSidebar() {
+      const input = document.getElementById('sheet-endpoint-sidebar');
+      if (!input) return;
+      appState.sheetEndpoint = input.value.trim();
+      localStorage.setItem('atelier-sheet-endpoint', appState.sheetEndpoint);
+      const legacy = document.getElementById('sheet-endpoint');
+      if (legacy) legacy.value = appState.sheetEndpoint;
+      syncReservationsToSheet(true);
+      loadLayoutFromSheet(true);
+    }
+
+    async function syncReservationsToSheet(showStatus = false) {
+      if (!appState.sheetEndpoint) return;
+      const status = document.getElementById('sheet-sync-status');
+      const sideStatus = document.getElementById('sheet-sync-status-sidebar');
+      if (status && showStatus) status.textContent = 'กำลังซิงก์...';
+      if (sideStatus && showStatus) sideStatus.textContent = 'กำลังซิงก์...';
+      try {
+        const customers = Array.from(new Map(appState.reservations.filter(r => r.customerName || r.phone).map(r => {
+          const key = r.phone || r.customerName;
+          return [key, { customerId: key, customerName: r.customerName, phone: r.phone, lastBookingDate: r.bookingDate || '', lastTimeSlot: r.timeSlot || '', updatedAt: r.updatedAt || r.bookedAt || new Date().toISOString() }];
+        })).values());
+        await fetch(appState.sheetEndpoint, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ source: 'ATELIER', appScriptVersion: 'v2', action: 'upsertReservationsAndCustomers', updatedAt: new Date().toISOString(), reservations: appState.reservations, customers }) });
+        if (status) status.textContent = 'ซิงก์ล่าสุด ' + new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        if (sideStatus) sideStatus.textContent = 'ซิงก์ล่าสุด ' + new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+      } catch (error) {
+        if (status) status.textContent = 'ซิงก์ไม่สำเร็จ';
+        if (sideStatus) sideStatus.textContent = 'ซิงก์ไม่สำเร็จ';
+      }
+    }
+
+    // --- Public landing page and modes ---
+    function enterBookingExperience() {
+      document.getElementById('customer-landing')?.classList.add('hidden');
+      setMode('customer');
+      updateCustomerStatusBar();
+    }
+
+    function enterAdminExperience() {
+      openAdminLogin();
+    }
+
+    function showCustomerLanding() {
+      document.getElementById('customer-landing')?.classList.remove('hidden');
+      document.getElementById('reservation-panel')?.classList.add('hidden');
+      setMode('customer');
+    }
+
+    // --- Modes & Admin Tabs ---
+    // Demo gate for a static Cloudflare Pages build. Replace this value or connect Cloudflare Access for real security.
+    const ATELIER_ADMIN_USERNAME = 'fluke';
+    const ATELIER_ADMIN_PASSCODE = '1995';
+
+    function openAdminLogin() {
+      const modal = document.getElementById('admin-login-modal');
+      if (!modal) return;
+      document.getElementById('admin-login-error').textContent = '';
+      document.getElementById('admin-password').value = '';
+      modal.classList.remove('hidden');
+      setTimeout(() => document.getElementById('admin-username')?.focus(), 50);
+    }
+
+    function closeAdminLogin() {
+      document.getElementById('admin-login-modal')?.classList.add('hidden');
+    }
+
+    function submitAdminLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('admin-username').value.trim();
+      const password = document.getElementById('admin-password').value;
+      const error = document.getElementById('admin-login-error');
+      if (username !== ATELIER_ADMIN_USERNAME || password !== ATELIER_ADMIN_PASSCODE) {
+        error.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+        document.getElementById('admin-password').select();
+        return;
+      }
+      appState.adminAuthenticated = true;
+      sessionStorage.setItem('atelier-admin-authenticated', '1');
+      closeAdminLogin();
+      document.getElementById('customer-landing')?.classList.add('hidden');
+      setMode('admin');
+    }
+
+    function adminLogout() {
+      appState.adminAuthenticated = false;
+      sessionStorage.removeItem('atelier-admin-authenticated');
+      document.getElementById('admin-sidebar')?.classList.add('hidden');
+      showCustomerLanding();
+    }
+
+    function setMode(mode) {
+      if ((mode === 'admin' || mode === 'layout') && !appState.adminAuthenticated) {
+        openAdminLogin();
+        return;
+      }
+      appState.mode = mode;
+      if (mode !== 'customer') document.getElementById('customer-landing')?.classList.add('hidden');
+      const custBtn = document.getElementById('mode-customer');
+      const adminBtn = document.getElementById('mode-admin');
+      const layoutBtn = document.getElementById('mode-layout');
+      const sidebar = document.getElementById('admin-sidebar');
+      const reservationPanel = document.getElementById('reservation-panel');
+      const customerStatusBar = document.getElementById('customer-status-bar');
+      const layoutTabs = ['objects', 'boundary', 'colors', 'settings', 'sheets'];
+
+      [custBtn, adminBtn, layoutBtn].forEach(btn => {
+        if (btn) btn.className = 'px-5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-2';
+      });
+
+      if (mode === 'customer') {
+        custBtn.className = 'px-5 py-2 rounded-lg text-sm font-semibold bg-white text-emerald-600 shadow-sm flex items-center gap-2';
+        adminBtn?.classList.add('hidden');
+        layoutBtn?.classList.add('hidden');
+        sidebar.classList.add('hidden');
+        reservationPanel?.classList.add('customer-panel');
+        customerStatusBar?.classList.remove('hidden');
+        document.getElementById('quick-animation')?.classList.remove('hidden');
+        return;
+      }
+
+      customerStatusBar?.classList.toggle('hidden', mode === 'layout');
+      adminBtn?.classList.remove('hidden');
+      layoutBtn?.classList.remove('hidden');
+      document.getElementById('quick-animation')?.classList.toggle('hidden', mode === 'admin');
+      sidebar.classList.remove('hidden');
+      reservationPanel?.classList.remove('customer-panel');
+
+      if (mode === 'admin') {
+        adminBtn.className = 'px-5 py-2 rounded-lg text-sm font-semibold bg-white text-emerald-600 shadow-sm flex items-center gap-2';
+        layoutTabs.forEach(tab => document.getElementById(`tab-btn-${tab}`)?.classList.add('hidden'));
+        document.getElementById('tab-btn-reservations')?.classList.remove('hidden');
+        openAdminTab('reservations');
+      } else {
+        document.getElementById('quick-animation')?.classList.remove('hidden');
+        layoutBtn.className = 'px-5 py-2 rounded-lg text-sm font-semibold bg-white text-emerald-600 shadow-sm flex items-center gap-2';
+        layoutTabs.forEach(tab => document.getElementById(`tab-btn-${tab}`)?.classList.remove('hidden'));
+        document.getElementById('tab-btn-reservations')?.classList.add('hidden');
+        openAdminTab('objects');
+      }
+    }
+
+    function openAdminTab(tab) {
+      ['objects', 'boundary', 'colors', 'reservations', 'settings', 'sheets'].forEach(t => {
+        const content = document.getElementById(`tab-content-${t}`);
+        const button = document.getElementById(`tab-btn-${t}`);
+        if (content) content.classList.add('hidden');
+        if (button) button.className = "flex-1 py-3 text-slate-500 hover:text-slate-800 text-center";
+      });
+      const activeContent = document.getElementById(`tab-content-${tab}`);
+      const activeButton = document.getElementById(`tab-btn-${tab}`);
+      if (activeContent) activeContent.classList.remove('hidden');
+      if (activeButton) activeButton.className = "flex-1 py-3 border-b-2 border-emerald-500 text-emerald-600 text-center bg-white font-bold";
+      if (tab === 'reservations') renderReservationList();
+      if (tab === 'sheets') { const input = document.getElementById('sheet-endpoint-sidebar'); if (input) input.value = appState.sheetEndpoint; }
+      if (tab === 'settings') { const status = document.getElementById('save-status'); if (status) status.textContent = 'ตั้งค่าจากเมนูด้านข้าง'; }
+    }
+
+    function viewSelectedTableSeat() {
+      const table = appState.objects.find(o => o.id === appState.selectedObjId && o.type.startsWith('table'));
+      if (!table) {
+        appState.customerMessage = 'กรุณากดเลือกโต๊ะก่อนดูมุมนั่งจริง';
+        updateCustomerStatusBar();
+        return;
+      }
+      const fromPosition = camera.position.clone();
+      const fromTarget = controls.target.clone();
+      const toPosition = new THREE.Vector3(table.x, 2.25, table.z + 3.8);
+      const toTarget = new THREE.Vector3(table.x, 1.05, table.z);
+      cameraTour = { startedAt: performance.now(), duration: 1200, fromPosition, fromTarget, toPosition, toTarget };
+      appState.customerMessage = `กำลังพาไปดูมุมนั่งจริงของโต๊ะ ${table.id}`;
+      updateCustomerStatusBar();
+    }
+
+    function updateCameraTour(time) {
+      if (!cameraTour) return;
+      const progress = Math.min(1, (time - cameraTour.startedAt) / cameraTour.duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      camera.position.lerpVectors(cameraTour.fromPosition, cameraTour.toPosition, eased);
+      controls.target.lerpVectors(cameraTour.fromTarget, cameraTour.toTarget, eased);
+      controls.update();
+      if (progress >= 1) cameraTour = null;
+    }
+
+    function setCameraView(view) {
+      if (view === 'iso') {
+        camera.position.set(0, 22, 22);
+      } else if (view === 'top') {
+        camera.position.set(0, 32, 0.1);
+      } else if (view === 'entrance') {
+        camera.position.set(0, 3, 16);
+      }
+      controls.update();
+    }
+
+    function toggleDayNight() {
+      isNight = !isNight;
+      scene.background = new THREE.Color(isNight ? 0x18252b : appState.colors.bg);
+      ambientLight.color.set(isNight ? 0x8da6ba : 0xfff7e8);
+      ambientLight.intensity = isNight ? 0.30 : 0.78;
+      dirLight.color.set(isNight ? 0x7892ad : 0xfff3dc);
+      dirLight.intensity = isNight ? 0.16 : 0.72;
+      roomLight.color.set(isNight ? 0xffb45f : 0xffd9a0);
+      roomLight.intensity = isNight ? 1.55 : 0.25;
+      if (floorPulseMaterial) floorPulseMaterial.color.set(isNight ? 0xf4c98a : 0xa8c7b2);
+      const btn = document.getElementById('theme-toggle');
+      if (btn) { btn.classList.toggle('is-night', isNight); btn.innerHTML = isNight ? '🌙 กลางคืน' : '☀️ กลางวัน'; }
+      const quick = document.getElementById('quick-night');
+      if (quick) { quick.classList.toggle('is-night', isNight); quick.innerHTML = isNight ? '🌙 กลางคืน' : '☀️ กลางวัน'; }
+    }
+
+    function animateInterior(time) {
+      if (!appState.animationPlaying) return;
+      if (floorPulseMesh && floorPulseMaterial) {
+        const wave = (Math.sin(time * 0.0018) + 1) / 2;
+        floorPulseMesh.scale.setScalar(1 + wave * 0.018);
+        floorPulseMaterial.opacity = (isNight ? 0.14 : 0.07) + wave * 0.08;
+      }
+      if (!introComplete) {
+        const elapsed = time - introStart;
+        const total = appState.objects.length * 170 + 700;
+        appState.objects.forEach((obj, index) => {
+          const group = object3DMap.get(obj.id);
+          if (!group || !group.userData.baseScale) return;
+          const progress = Math.max(0, Math.min(1, (elapsed - index * 170) / 520));
+          const eased = 1 - Math.pow(1 - progress, 3);
+          group.visible = progress > 0;
+          group.scale.copy(group.userData.baseScale).multiplyScalar(0.08 + eased * 0.92);
+          group.position.y = Math.sin(progress * Math.PI) * 0.22;
+        });
+        if (elapsed >= total) {
+          introComplete = true;
+          appState.objects.forEach(obj => {
+            const group = object3DMap.get(obj.id);
+            if (group && group.userData.baseScale) {
+              group.visible = true;
+              group.scale.copy(group.userData.baseScale);
+              group.position.y = 0;
+            }
+          });
+        }
+      }
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('canvas-container');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      updateCameraTour(performance.now());
+      animateInterior(performance.now());
+      updateLabels();
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>
