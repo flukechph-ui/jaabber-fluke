@@ -1136,6 +1136,9 @@
   </div>
 
   <script>
+    // Set this URL before publishing so every visitor uses the same shared sheet endpoint.
+    const JAAB_BER_SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyc_yJwusPGB_6MfWJ9FeUmUVaM8yoNDwIy-l3afCN4s-mVT6PiQFY6ET73_VNM566t/exec';
+
     // --- Application State ---
     let appState = {
       mode: 'customer', // 'customer' | 'admin' | 'layout'
@@ -1180,8 +1183,7 @@
       selectedObjId: null,
       reservations: [],
       lateReleaseMinutes: 15,
-      sheetEndpoint: localStorage.getItem('atelier-sheet-endpoint') || '',
-      layoutUpdatedAt: localStorage.getItem('atelier-layout-updated-at') || ''
+      sheetEndpoint: JAAB_BER_SHEETS_ENDPOINT.startsWith('https://script.google.com/macros/s/') ? JAAB_BER_SHEETS_ENDPOINT : (localStorage.getItem('atelier-sheet-endpoint') || '') 
     };
 
     // Three.js Engine Variables
@@ -1214,10 +1216,10 @@
       scheduleAnimationStop();
       animate();
       loadSavedReservations();
-      loadLayoutFromSheet(true);
+      loadSharedLayoutFromSheet(false);
+      setInterval(() => loadSharedLayoutFromSheet(false), 30000);
       setInterval(() => autoReleaseLateReservations(false), 30000);
       setInterval(() => syncReservationsToSheet(false), 15000);
-      setInterval(() => loadLayoutFromSheet(false), 30000);
     });
 
     // --- 3D Scene Initialization ---
@@ -1593,8 +1595,6 @@
       updateCustomerStatusBar();
       const container = document.getElementById('labels-container');
       container.innerHTML = '';
-      // โหมดจัดการผังร้านเน้นการจัดวางวัตถุ จึงไม่แสดงชื่อหรือรายละเอียดโต๊ะ
-      if (appState.mode === 'layout') return;
       appState.objects.forEach(obj => {
         if (!obj.type.startsWith('table')) return;
         const reservation = appState.reservations.find(r => r.tableId === obj.id && ['booked','partial','checked-in'].includes(r.status));
@@ -1849,137 +1849,106 @@
       showObjectInspector(appState.objects[appState.objects.length - 1]);
     }
 
-    function saveLayout() {
-      const payload = {
-        version: 1,
-        savedAt: new Date().toISOString(),
-        colors: appState.colors,
-        boundaryPoints: appState.boundaryPoints,
-        objects: appState.objects
-      };
-      const status = document.getElementById('save-status');
-      try {
-        localStorage.setItem('atelier-layout-v1', JSON.stringify(payload));
-        appState.layoutUpdatedAt = payload.savedAt;
-        localStorage.setItem('atelier-layout-updated-at', payload.savedAt);
-        syncLayoutToSheet(true, payload);
-        const savedTime = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-        if (status) status.textContent = 'บันทึกแล้ว ' + savedTime;
-      } catch (error) {
-        console.error('Unable to save restaurant layout:', error);
-        if (status) status.textContent = 'บันทึกไม่สำเร็จ';
-        alert('บันทึกผังไม่สำเร็จ กรุณาตรวจสอบพื้นที่จัดเก็บของเบราว์เซอร์');
-      }
+    function createLayoutPayload() {
+      return { version: 1, savedAt: new Date().toISOString(), colors: appState.colors,
+        boundaryPoints: appState.boundaryPoints, objects: appState.objects };
     }
 
-    function loadLayout() {
-      try {
-        const raw = localStorage.getItem('atelier-layout-v1');
-        if (!raw) { alert('ยังไม่มีผังที่บันทึกไว้ในเบราว์เซอร์นี้'); return; }
-        const payload = JSON.parse(raw);
-        if (!payload || !Array.isArray(payload.objects)) throw new Error('Invalid layout data');
-        if (payload.colors) appState.colors = payload.colors;
-        if (Array.isArray(payload.boundaryPoints)) appState.boundaryPoints = payload.boundaryPoints;
-        appState.objects = payload.objects;
-        appState.layoutUpdatedAt = payload.savedAt || new Date().toISOString();
-        localStorage.setItem('atelier-layout-updated-at', appState.layoutUpdatedAt);
-        appState.selectedObjId = null;
-        rebuildFloorGeometry();
-        renderSceneObjects();
-        document.getElementById('inspector-panel')?.classList.add('hidden');
-        const status = document.getElementById('save-status');
-        if (status) status.textContent = 'โหลดผังที่บันทึกไว้แล้ว';
-      } catch (error) {
-        console.error('Unable to load restaurant layout:', error);
-        alert('โหลดผังไม่สำเร็จ ข้อมูลที่บันทึกไว้อาจเสียหาย');
-      }
-    }
-
-    function clearSavedLayout() {
-      localStorage.removeItem('atelier-layout-v1');
-      const status = document.getElementById('save-status');
-      if (status) status.textContent = 'ลบข้อมูลบันทึกแล้ว';
-    }
-
-    function applyLayoutPayload(payload, source = 'ชีต') {
+    function applyLayoutPayload(payload, source = 'local') {
       if (!payload || !Array.isArray(payload.objects)) throw new Error('Invalid layout data');
       if (payload.colors) appState.colors = payload.colors;
       if (Array.isArray(payload.boundaryPoints)) appState.boundaryPoints = payload.boundaryPoints;
       appState.objects = payload.objects;
-      appState.layoutUpdatedAt = payload.savedAt || new Date().toISOString();
-      localStorage.setItem('atelier-layout-v1', JSON.stringify({
-        version: payload.version || 1,
-        savedAt: appState.layoutUpdatedAt,
-        colors: appState.colors,
-        boundaryPoints: appState.boundaryPoints,
-        objects: appState.objects
-      }));
-      localStorage.setItem('atelier-layout-updated-at', appState.layoutUpdatedAt);
       appState.selectedObjId = null;
       rebuildFloorGeometry();
       renderSceneObjects();
+      updateLabels();
       document.getElementById('inspector-panel')?.classList.add('hidden');
       const status = document.getElementById('save-status');
-      if (status) status.textContent = `โหลดผังส่วนกลางแล้ว (${source})`;
+      if (status) status.textContent = source === 'sheet' ? 'โหลดผังส่วนกลางแล้ว' : 'โหลดผังที่บันทึกไว้แล้ว';
     }
 
-    async function syncLayoutToSheet(showStatus = false, layoutPayload = null) {
-      if (!appState.sheetEndpoint) return;
-      const status = document.getElementById('sheet-sync-status');
-      const sideStatus = document.getElementById('sheet-sync-status-sidebar');
-      if (showStatus) {
-        if (status) status.textContent = 'กำลังบันทึกผัง...';
-        if (sideStatus) sideStatus.textContent = 'กำลังบันทึกผัง...';
-      }
+    async function saveLayout() {
+      const payload = createLayoutPayload();
+      const status = document.getElementById('save-status');
       try {
-        const payload = layoutPayload || JSON.parse(localStorage.getItem('atelier-layout-v1') || 'null');
-        if (!payload) return;
-        await fetch(appState.sheetEndpoint, {
-          method: 'POST', mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ source: 'ATELIER', appScriptVersion: 'v2', action: 'upsertLayout', layout: payload, updatedAt: payload.savedAt || new Date().toISOString() })
+        localStorage.setItem('atelier-layout-v1', JSON.stringify(payload));
+        if (status) status.textContent = 'บันทึกในเครื่องแล้ว';
+      } catch (error) {
+        console.error('Unable to save local layout:', error);
+        if (status) status.textContent = 'พื้นที่จัดเก็บในเครื่องเต็ม';
+      }
+      if (appState.sheetEndpoint) {
+        if (status) status.textContent = 'กำลังบันทึกผังส่วนกลาง…';
+        try {
+          const response = await fetch(appState.sheetEndpoint, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ source: 'ATELIER', action: 'upsertLayout', layout: payload }) });
+          const result = await response.json();
+          if (!response.ok || result.ok === false) throw new Error(result.error || 'Apps Script rejected layout save');
+          if (status) status.textContent = 'บันทึกผังส่วนกลางแล้ว';
+        } catch (error) {
+          console.error('Unable to save shared layout:', error);
+          if (status) status.textContent = 'บันทึกในเครื่องแล้ว · ซิงก์ชีตไม่สำเร็จ';
+          alert('บันทึกในเครื่องแล้ว แต่ส่งผังขึ้น Google Sheets ไม่สำเร็จ');
+        }
+      } else if (status) {
+        status.textContent = 'บันทึกในเครื่องแล้ว · ยังไม่ได้เชื่อม Sheets';
+      }
+    }
+
+    function loadLayout() {
+      if (appState.sheetEndpoint) {
+        loadSharedLayoutFromSheet(true).then(loaded => {
+          if (!loaded) loadLocalLayout(true);
         });
-        if (showStatus) {
-          const text = 'บันทึกผังส่วนกลางแล้ว ' + new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-          if (status) status.textContent = text;
-          if (sideStatus) sideStatus.textContent = text;
-        }
+      } else loadLocalLayout(true);
+    }
+
+    function loadLocalLayout(showAlert = false) {
+      try {
+        const raw = localStorage.getItem('atelier-layout-v1');
+        if (!raw) { if (showAlert) alert('ยังไม่มีผังที่บันทึกไว้ในเครื่องนี้'); return false; }
+        applyLayoutPayload(JSON.parse(raw), 'local');
+        return true;
       } catch (error) {
-        console.error('Unable to sync restaurant layout:', error);
-        if (showStatus) {
-          if (status) status.textContent = 'บันทึกผังไม่สำเร็จ';
-          if (sideStatus) sideStatus.textContent = 'บันทึกผังไม่สำเร็จ';
-        }
+        console.error('Unable to load local restaurant layout:', error);
+        if (showAlert) alert('โหลดผังในเครื่องไม่สำเร็จ ข้อมูลอาจเสียหาย');
+        return false;
       }
     }
 
-    async function loadLayoutFromSheet(showStatus = false) {
-      if (!appState.sheetEndpoint) return;
+    let sharedLayoutLoadedAt = '';
+    let sharedLayoutRequestActive = false;
+    async function loadSharedLayoutFromSheet(showStatus = false) {
+      if (!appState.sheetEndpoint || sharedLayoutRequestActive) return false;
+      sharedLayoutRequestActive = true;
       try {
-        const separator = appState.sheetEndpoint.includes('?') ? '&' : '?';
-        const response = await fetch(`${appState.sheetEndpoint}${separator}action=getLayout&source=ATELIER`, { method: 'GET', mode: 'cors', cache: 'no-store' });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const url = new URL(appState.sheetEndpoint);
+        url.searchParams.set('action', 'getLayout');
+        const response = await fetch(url.toString(), { method: 'GET', cache: 'no-store' });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
         const result = await response.json();
-        const remote = result.layout || result.data || result;
-        if (!remote || !Array.isArray(remote.objects)) return;
-        const remoteTime = new Date(remote.savedAt || remote.updatedAt || 0).getTime();
-        const localTime = new Date(appState.layoutUpdatedAt || 0).getTime();
-        if (remoteTime > localTime) applyLayoutPayload(remote, 'Google Sheets');
-        else if (showStatus) {
-          const status = document.getElementById('sheet-sync-status');
-          const sideStatus = document.getElementById('sheet-sync-status-sidebar');
-          if (status) status.textContent = 'เชื่อมต่อ Google Sheets แล้ว';
-          if (sideStatus) sideStatus.textContent = 'เชื่อมต่อ Google Sheets แล้ว';
+        if (!result || result.ok !== true) throw new Error(result?.error || 'Invalid Sheets response');
+        const payload = result.layout;
+        if (!payload || !Array.isArray(payload.objects)) {
+          if (showStatus) alert('Google Sheets ยังไม่มีผังส่วนกลาง กรุณาให้แอดมินบันทึกผังก่อน');
+          return false;
         }
+        const serverSavedAt = String(payload.savedAt || result.updatedAt || '');
+        if (serverSavedAt && serverSavedAt === sharedLayoutLoadedAt) return true;
+        // Do not overwrite an admin's active, unsaved layout edits during polling.
+        if (!showStatus && appState.mode === 'layout') return false;
+        applyLayoutPayload(payload, 'sheet');
+        sharedLayoutLoadedAt = serverSavedAt;
+        try { localStorage.setItem('atelier-layout-v1', JSON.stringify(payload)); } catch (_) {}
+        return true;
       } catch (error) {
-        console.warn('Unable to load restaurant layout from Google Sheets:', error);
-        if (showStatus) {
-          const status = document.getElementById('sheet-sync-status');
-          const sideStatus = document.getElementById('sheet-sync-status-sidebar');
-          if (status) status.textContent = 'โหลดผังจากชีตไม่สำเร็จ';
-          if (sideStatus) sideStatus.textContent = 'โหลดผังจากชีตไม่สำเร็จ';
-        }
-      }
+        console.warn('Shared layout could not be loaded:', error);
+        const status = document.getElementById('save-status');
+        if (showStatus && status) status.textContent = 'อ่านผังจาก Sheets ไม่สำเร็จ';
+        if (showStatus) alert('อ่านผังส่วนกลางไม่สำเร็จ ตรวจ URL และ Apps Script action getLayout');
+        return false;
+      } finally { sharedLayoutRequestActive = false; }
     }
 
     // --- 2D Boundary Canvas (10-Point Editor) ---
@@ -2395,7 +2364,7 @@
       appState.sheetEndpoint = url;
       localStorage.setItem('atelier-sheet-endpoint', url);
       syncReservationsToSheet(true);
-      loadLayoutFromSheet(true);
+      loadSharedLayoutFromSheet(true);
     }
 
     function connectSheetFromSidebar() {
@@ -2406,7 +2375,7 @@
       const legacy = document.getElementById('sheet-endpoint');
       if (legacy) legacy.value = appState.sheetEndpoint;
       syncReservationsToSheet(true);
-      loadLayoutFromSheet(true);
+      loadSharedLayoutFromSheet(true);
     }
 
     async function syncReservationsToSheet(showStatus = false) {
@@ -2448,8 +2417,8 @@
 
     // --- Modes & Admin Tabs ---
     // Demo gate for a static Cloudflare Pages build. Replace this value or connect Cloudflare Access for real security.
-    const ATELIER_ADMIN_USERNAME = 'fluke';
-    const ATELIER_ADMIN_PASSCODE = '1995';
+    const ATELIER_ADMIN_USERNAME = 'admin';
+    const ATELIER_ADMIN_PASSCODE = 'admin1234';
 
     function openAdminLogin() {
       const modal = document.getElementById('admin-login-modal');
