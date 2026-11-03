@@ -1595,6 +1595,8 @@
       updateCustomerStatusBar();
       const container = document.getElementById('labels-container');
       container.innerHTML = '';
+      // Keep the layout-editing canvas clear; customer mode still shows table labels.
+      if (appState.mode === 'layout') return;
       appState.objects.forEach(obj => {
         if (!obj.type.startsWith('table')) return;
         const reservation = appState.reservations.find(r => r.tableId === obj.id && ['booked','partial','checked-in'].includes(r.status));
@@ -2417,8 +2419,8 @@
 
     // --- Modes & Admin Tabs ---
     // Demo gate for a static Cloudflare Pages build. Replace this value or connect Cloudflare Access for real security.
-    const ATELIER_ADMIN_USERNAME = 'admin';
-    const ATELIER_ADMIN_PASSCODE = 'admin1234';
+    const ATELIER_ADMIN_USERNAME = 'fluke';
+    const ATELIER_ADMIN_PASSCODE = '1995';
 
     function openAdminLogin() {
       const modal = document.getElementById('admin-login-modal');
