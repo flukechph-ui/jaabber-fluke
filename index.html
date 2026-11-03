@@ -866,6 +866,9 @@
               <button onclick="addObject('chair-round')" class="p-2.5 bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
                 🪑 เก้าอี้กลม
               </button>
+              <button onclick="addObject('table-bar-chair')" class="p-2.5 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                🍸 เก้าอี้บาร์ (1 ที่)
+              </button>
               <button onclick="addObject('road')" class="p-2.5 bg-slate-50 hover:bg-slate-200 border border-slate-200 hover:border-slate-400 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
                 🛣️ เพิ่มถนน
               </button>
@@ -1344,21 +1347,35 @@
 
         if (obj.type.startsWith('table')) {
           // Table Top
-          let topGeom = obj.type === 'table-round' 
-            ? new THREE.CylinderGeometry(1.2, 1.2, 0.1, 32)
-            : new THREE.BoxGeometry(2, 0.1, 1.4);
-          
+          const isBarChair = obj.type === 'table-bar-chair';
+          let topGeom = isBarChair
+            ? new THREE.CylinderGeometry(0.58, 0.58, 0.16, 28)
+            : (obj.type === 'table-round'
+              ? new THREE.CylinderGeometry(1.2, 1.2, 0.1, 32)
+              : new THREE.BoxGeometry(2, 0.1, 1.4));
           const topMesh = new THREE.Mesh(topGeom, mat);
-          topMesh.position.y = 1;
+          topMesh.position.y = isBarChair ? 1.65 : 1;
           topMesh.castShadow = true;
           group.add(topMesh);
 
-          // Table Leg
-          const legGeom = new THREE.CylinderGeometry(0.1, 0.1, 1, 16);
-          const legMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
-          const leg = new THREE.Mesh(legGeom, legMat);
-          leg.position.y = 0.5;
-          group.add(leg);
+          const legMat = new THREE.MeshStandardMaterial({ color: isBarChair ? 0x614a3d : 0x475569, roughness: 0.62 });
+          if (isBarChair) {
+            const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 1.48, 16), legMat);
+            pedestal.position.y = 0.88; pedestal.castShadow = true; group.add(pedestal);
+            const footBase = new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.1, 28), legMat);
+            footBase.position.y = 0.08; group.add(footBase);
+            const footRing = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.035, 8, 28), legMat);
+            footRing.rotation.x = Math.PI / 2; footRing.position.y = 0.58; group.add(footRing);
+            const backPost = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.42, 10), legMat);
+            backPost.position.set(0, 1.92, 0.43); group.add(backPost);
+            const backRest = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.14, 0.12), mat);
+            backRest.position.set(0, 2.12, 0.43); backRest.castShadow = true; group.add(backRest);
+          } else {
+            const legGeom = new THREE.CylinderGeometry(0.1, 0.1, 1, 16);
+            const leg = new THREE.Mesh(legGeom, legMat);
+            leg.position.y = 0.5;
+            group.add(leg);
+          }
         } else if (obj.type === 'bookshelf') {
           const wood = new THREE.MeshStandardMaterial({ color: 0xb89b7b, roughness: 0.78 });
           const back = new THREE.Mesh(new THREE.BoxGeometry(3.8, 3.1, 0.18), wood);
@@ -1841,7 +1858,7 @@
         scaleY: 1,
         scaleZ: 1,
         rotY: 0,
-        seats: type === 'sofa' ? 4 : ((type === 'chair' || type === 'chair-round') ? 1 : (type === 'room-box' || type === 'road' || type === 'partition' || type === 'bookshelf' || type === 'floor-lamp' || type === 'coffee-table' || type === 'pendant-light' || type === 'tree' || type === 'tree-large' ? 0 : 4)),
+        seats: type === 'table-bar-chair' || type === 'chair' || type === 'chair-round' ? 1 : (type === 'sofa' ? 4 : (type === 'room-box' || type === 'road' || type === 'partition' || type === 'bookshelf' || type === 'floor-lamp' || type === 'coffee-table' || type === 'pendant-light' || type === 'tree' || type === 'tree-large' ? 0 : 4)),
         reserved: false,
         isVip: type === 'sofa',
         ...(type === 'tree-large' ? { scaleX: 1.2, scaleY: 1.2, scaleZ: 1.2 } : {})
