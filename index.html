@@ -845,6 +845,9 @@
               <button onclick="addObject('table-round')" class="p-2.5 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
                 ⭕ โต๊ะกลม
               </button>
+              <button onclick="addObject('table-round-set4')" class="p-2.5 bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
+                ⭕ โต๊ะกลม + เก้าอี้ 4 ตัว
+              </button>
               <button onclick="addObject('stage')" class="p-2.5 bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-300 rounded-xl flex items-center gap-2 text-slate-700 transition-colors">
                 🎤 เวทีแสดง
               </button>
@@ -1235,11 +1238,12 @@
       camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
       camera.position.set(0, 25, 27);
 
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.8));
+      const isMobileDevice = window.matchMedia('(max-width: 768px)').matches || (navigator.hardwareConcurrency || 8) <= 4;
+      renderer = new THREE.WebGLRenderer({ antialias: !isMobileDevice, powerPreference: 'low-power' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobileDevice ? 1 : 1.25));
       renderer.setSize(container.clientWidth, container.clientHeight);
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.enabled = !isMobileDevice;
+      renderer.shadowMap.type = THREE.BasicShadowMap;
       container.appendChild(renderer.domElement);
 
       controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -1257,12 +1261,12 @@
       dirLight = new THREE.DirectionalLight(0xfff3dc, 0.72);
       dirLight.position.set(15, 25, 15);
       dirLight.castShadow = true;
-      dirLight.shadow.mapSize.width = 1024;
-      dirLight.shadow.mapSize.height = 1024;
+      dirLight.shadow.mapSize.width = 512;
+      dirLight.shadow.mapSize.height = 512;
       scene.add(dirLight);
       roomLight = new THREE.PointLight(0xffd9a0, 0.25, 38);
       roomLight.position.set(0, 7, 1);
-      roomLight.castShadow = true;
+      roomLight.castShadow = false;
       scene.add(roomLight);
 
       rebuildFloorGeometry();
@@ -1326,9 +1330,19 @@
     }
 
     // --- Create 3D Objects Procedurally ---
+    function disposeObject3D(rootObject) {
+      rootObject.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          materials.forEach(material => material.dispose());
+        }
+      });
+    }
+
     function renderSceneObjects() {
-      // Clear old meshes
-      object3DMap.forEach(mesh => scene.remove(mesh));
+      // Clear old meshes and release their GPU allocations before rebuilding.
+      object3DMap.forEach(mesh => { scene.remove(mesh); disposeObject3D(mesh); });
       object3DMap.clear();
 
       appState.objects.forEach((obj, index) => {
@@ -1348,15 +1362,30 @@
         if (obj.type.startsWith('table')) {
           // Table Top
           const isBarChair = obj.type === 'table-bar-chair';
+          const isRoundSet4 = obj.type === 'table-round-set4';
           let topGeom = isBarChair
             ? new THREE.CylinderGeometry(0.58, 0.58, 0.16, 28)
-            : (obj.type === 'table-round'
-              ? new THREE.CylinderGeometry(1.2, 1.2, 0.1, 32)
+            : ((obj.type === 'table-round' || isRoundSet4)
+              ? new THREE.CylinderGeometry(isRoundSet4 ? 1.15 : 1.2, isRoundSet4 ? 1.15 : 1.2, 0.1, 28)
               : new THREE.BoxGeometry(2, 0.1, 1.4));
           const topMesh = new THREE.Mesh(topGeom, mat);
           topMesh.position.y = isBarChair ? 1.65 : 1;
           topMesh.castShadow = true;
           group.add(topMesh);
+
+          if (isRoundSet4) {
+            // Four individual round-seat chairs positioned at the four sides of the table.
+            const chairMat = new THREE.MeshStandardMaterial({ color: 0xb87345, roughness: 0.68 });
+            const chairPositions = [[0,-1.83],[1.83,0],[0,1.83],[-1.83,0]];
+            chairPositions.forEach(([cx, cz]) => {
+              const chairSeat = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.16, 20), chairMat);
+              chairSeat.position.set(cx, 0.66, cz); chairSeat.castShadow = true; group.add(chairSeat);
+              const chairStem = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.09, 0.55, 10), chairMat);
+              chairStem.position.set(cx, 0.32, cz); group.add(chairStem);
+              const chairBase = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.07, 16), chairMat);
+              chairBase.position.set(cx, 0.055, cz); group.add(chairBase);
+            });
+          }
 
           const legMat = new THREE.MeshStandardMaterial({ color: isBarChair ? 0x614a3d : 0x475569, roughness: 0.62 });
           if (isBarChair) {
@@ -1608,31 +1637,61 @@
       updateLabels();
     }
 
-    function updateLabels() {
-      updateCustomerStatusBar();
+    const tableLabelElements = new Map();
+    const labelProjectionVector = new THREE.Vector3();
+
+    function updateLabels(updateStatus = true) {
+      if (updateStatus) updateCustomerStatusBar();
       const container = document.getElementById('labels-container');
-      container.innerHTML = '';
-      // Keep the layout-editing canvas clear; customer mode still shows table labels.
-      if (appState.mode === 'layout') return;
-      appState.objects.forEach(obj => {
-        if (!obj.type.startsWith('table')) return;
-        const reservation = appState.reservations.find(r => r.tableId === obj.id && ['booked','partial','checked-in'].includes(r.status));
-        const pos = new THREE.Vector3(obj.x, 1.4, obj.z);
-        pos.project(camera);
-        // Show labels for every table that is in front of the camera.
-        // The old pos.z < 1 filter hid many tables in customer mode.
-        if (pos.z > -1 && pos.z < 1) {
-          const x = Math.max(12, Math.min(container.clientWidth - 12, (pos.x * 0.5 + 0.5) * container.clientWidth));
-          const y = Math.max(22, Math.min(container.clientHeight - 18, (-(pos.y * 0.5) + 0.5) * container.clientHeight));
-          const label = document.createElement('div');
-          label.className = 'table-label absolute transform -translate-x-1/2 -translate-y-1/2' + (appState.mode === 'customer' ? (reservation ? ' customer-reserved' : ' customer-available') : '') + (appState.selectedObjId === obj.id && appState.mode === 'customer' ? ' customer-selected' : '');
-          label.style.left = `${x}px`; label.style.top = `${y}px`;
-          label.style.zIndex = '20';
-          const bookingText = reservation ? `<div class="text-[10px] text-rose-600">${escapeHtml(reservation.customerName)} · มา ${reservation.checkedIn || 0}/${reservation.guests}</div>` : '<div class="text-[10px] text-emerald-600">ว่าง · กดเพื่อจอง</div>';
-          label.innerHTML = `<div class="font-bold">${escapeHtml(obj.id)} <span class="font-normal">(${obj.seats}ที่)</span></div>${bookingText}`;
-          container.appendChild(label);
+      if (!container) return;
+      if (appState.mode === 'layout') {
+        if (tableLabelElements.size) {
+          container.replaceChildren();
+          tableLabelElements.clear();
         }
-      });
+        return;
+      }
+      const activeIds = new Set();
+      const reservationByTable = new Map();
+      for (const r of appState.reservations) {
+        if (['booked', 'partial', 'checked-in'].includes(r.status)) reservationByTable.set(r.tableId, r);
+      }
+      for (const obj of appState.objects) {
+        if (!obj.type.startsWith('table')) continue;
+        activeIds.add(obj.id);
+        const reservation = reservationByTable.get(obj.id);
+        let label = tableLabelElements.get(obj.id);
+        if (!label) {
+          label = document.createElement('div');
+          label.className = 'table-label absolute transform -translate-x-1/2 -translate-y-1/2';
+          label.style.zIndex = '20';
+          container.appendChild(label);
+          tableLabelElements.set(obj.id, label);
+        }
+        const selected = appState.selectedObjId === obj.id && appState.mode === 'customer';
+        label.classList.toggle('customer-reserved', appState.mode === 'customer' && !!reservation);
+        label.classList.toggle('customer-available', appState.mode === 'customer' && !reservation);
+        label.classList.toggle('customer-selected', selected);
+        const renderKey = `${reservation ? `${reservation.customerName}|${reservation.checkedIn}|${reservation.guests}` : 'available'}|${obj.seats}|${appState.mode}|${selected}`;
+        if (label.dataset.renderKey !== renderKey) {
+          const bookingText = reservation
+            ? `<div class="text-[10px] text-rose-600">${escapeHtml(reservation.customerName)} · มา ${reservation.checkedIn || 0}/${reservation.guests}</div>`
+            : '<div class="text-[10px] text-emerald-600">ว่าง · กดเพื่อจอง</div>';
+          label.innerHTML = `<div class="font-bold">${escapeHtml(obj.id)} <span class="font-normal">(${obj.seats}ที่)</span></div>${bookingText}`;
+          label.dataset.renderKey = renderKey;
+        }
+        labelProjectionVector.set(obj.x, 1.4, obj.z).project(camera);
+        if (labelProjectionVector.z > -1 && labelProjectionVector.z < 1) {
+          const x = Math.max(12, Math.min(container.clientWidth - 12, (labelProjectionVector.x * 0.5 + 0.5) * container.clientWidth));
+          const y = Math.max(22, Math.min(container.clientHeight - 18, (-(labelProjectionVector.y * 0.5) + 0.5) * container.clientHeight));
+          label.style.display = '';
+          label.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+          label.style.left = '0'; label.style.top = '0';
+        } else label.style.display = 'none';
+      }
+      for (const [id, label] of tableLabelElements) {
+        if (!activeIds.has(id)) { label.remove(); tableLabelElements.delete(id); }
+      }
     }
 
     // --- Interactive Raycasting, Selection & Dragging ---
@@ -1858,7 +1917,7 @@
         scaleY: 1,
         scaleZ: 1,
         rotY: 0,
-        seats: type === 'table-bar-chair' || type === 'chair' || type === 'chair-round' ? 1 : (type === 'sofa' ? 4 : (type === 'room-box' || type === 'road' || type === 'partition' || type === 'bookshelf' || type === 'floor-lamp' || type === 'coffee-table' || type === 'pendant-light' || type === 'tree' || type === 'tree-large' ? 0 : 4)),
+        seats: type === 'table-bar-chair' || type === 'chair' || type === 'chair-round' ? 1 : (type === 'table-round-set4' || type === 'sofa' ? 4 : (type === 'room-box' || type === 'road' || type === 'partition' || type === 'bookshelf' || type === 'floor-lamp' || type === 'coffee-table' || type === 'pendant-light' || type === 'tree' || type === 'tree-large' ? 0 : 4)),
         reserved: false,
         isVip: type === 'sofa',
         ...(type === 'tree-large' ? { scaleX: 1.2, scaleY: 1.2, scaleZ: 1.2 } : {})
@@ -2641,7 +2700,7 @@
       controls.update();
       updateCameraTour(performance.now());
       animateInterior(performance.now());
-      updateLabels();
+      updateLabels(false);
       renderer.render(scene, camera);
     }
   </script>
